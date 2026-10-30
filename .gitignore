@@ -1,0 +1,12 @@
+# Build output
+target/
+.nsh/
+dist/
+
+# Local notes and tooling state, not part of the project
+docs/
+spikes/
+CLAUDE.md
+.superpowers/
+.remember/
+.DS_Store

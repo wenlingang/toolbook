@@ -1,0 +1,19 @@
+[package]
+name = "toolbook-app"
+description = "Toolbook's macOS app: the note editor and its native modules."
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+[workspace]
+
+[dependencies]
+nsh-core = { git = "https://github.com/longbridge/nsh", rev = "844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0" }
+nsh-base = { git = "https://github.com/longbridge/nsh", rev = "844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0" }
+toolbook-core = { path = "../crates/toolbook-core" }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[dev-dependencies]
+nsh-engine = { git = "https://github.com/longbridge/nsh", rev = "844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0" }
+nsh-testing = { git = "https://github.com/longbridge/nsh", rev = "844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0" }
