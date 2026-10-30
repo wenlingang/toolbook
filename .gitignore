@@ -10,3 +10,4 @@ CLAUDE.md
 .superpowers/
 .remember/
 .DS_Store
+.playwright-mcp/

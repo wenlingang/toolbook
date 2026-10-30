@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toolbook</title>
+<meta name="description" content="A notebook of developer tools. Write a Markdown note whose code blocks are tools: JSON, CSV to SQL, JWT, HMAC, HTTP, JS and more. They pass data to each other and recompute as you type. Run the same note in a Mac app, in the terminal, or with Claude and Codex.">
+<meta property="og:title" content="Toolbook">
+<meta property="og:description" content="Markdown notes whose code blocks are tools, and recompute as you type.">
+<meta property="og:image" content="https://wenlingang.github.io/toolbook/screenshots/doc.png">
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F3F4F6;
+  --surface: #FFFFFF;
+  --ink: #151922;
+  --muted: #5E6776;
+  --line: #DCE0E7;
+  --accent: #3B5BFF;
+  --accent-ink: #FFFFFF;
+  --rail: #C8D1FF;
+  --input: #F1F3F7;
+  --panel: #161B26;
+  --panel-ink: #D9DFEB;
+  --k: #9DB4FF;
+  --s: #A8D5A2;
+  --n: #F3B86B;
+  --error: #D92D20;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F131A;
+    --surface: #161B24;
+    --ink: #E3E8F0;
+    --muted: #8C96A8;
+    --line: #262E3C;
+    --accent: #7F96FF;
+    --accent-ink: #0F131A;
+    --rail: #2F3A66;
+    --input: #1B2230;
+    --panel: #0A0D13;
+    --error: #FF6B6B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F131A;
+  --surface: #161B24;
+  --ink: #E3E8F0;
+  --muted: #8C96A8;
+  --line: #262E3C;
+  --accent: #7F96FF;
+  --accent-ink: #0F131A;
+  --rail: #2F3A66;
+  --input: #1B2230;
+  --panel: #0A0D13;
+  --error: #FF6B6B;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+}
+img { display: block; max-width: 100%; height: auto; }
+a { color: inherit; }
+a:focus-visible, button:focus-visible, textarea:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+code, pre, textarea, .mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+
+/* Header */
+.top { display: flex; align-items: center; justify-content: space-between; padding-top: 22px; padding-bottom: 22px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: "IBM Plex Sans Condensed", sans-serif; font-weight: 700; font-size: 21px; text-decoration: none; }
+.brand img { width: 30px; height: 30px; border-radius: 7px; }
+.top nav { display: flex; gap: 24px; font-size: 15px; }
+.top nav a { text-decoration: none; color: var(--muted); }
+.top nav a:hover { color: var(--ink); }
+
+/* Hero */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 56px;
+  align-items: start;
+  padding-top: 48px;
+  padding-bottom: 96px;
+}
+h1, h2 {
+  font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+h1 { font-size: clamp(44px, 6.4vw, 78px); line-height: 1; margin: 24px 0 24px; }
+.lede { font-size: 20px; color: var(--muted); max-width: 30em; margin: 0 0 32px; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--ink); color: var(--bg);
+  text-decoration: none; font-weight: 600; font-size: 17px;
+  padding: 13px 22px; border-radius: 10px;
+}
+.btn:hover { background: var(--accent); color: var(--accent-ink); }
+.req { font-size: 15px; color: var(--muted); }
+
+/* The live note */
+.note {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 28px 28px 22px;
+  box-shadow: 0 24px 48px -32px rgba(20, 30, 60, .35);
+}
+.note h3 { font-family: "IBM Plex Sans Condensed", sans-serif; font-size: 24px; margin: 0 0 4px; }
+.note > p { margin: 0 0 20px; color: var(--muted); font-size: 15px; }
+.step { position: relative; padding-left: 40px; margin-top: 18px; }
+.step::before { content: ""; position: absolute; left: 12px; top: 28px; bottom: -22px; width: 2px; background: var(--rail); }
+.step:last-of-type::before { bottom: 0; }
+.node {
+  position: absolute; left: 0; top: 0;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: var(--accent-ink);
+  font: 600 12px/26px "IBM Plex Sans", sans-serif; text-align: center;
+}
+.step.bad .node { background: var(--error); }
+.step header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-height: 26px; margin-bottom: 8px; }
+.tool { font-weight: 600; font-size: 15px; }
+.io { font-size: 13px; color: var(--muted); }
+.io b { color: var(--accent); font-weight: 500; }
+.step textarea {
+  width: 100%; resize: vertical; min-height: 96px;
+  background: var(--input); color: var(--ink);
+  border: 1px solid transparent; border-radius: 8px;
+  padding: 10px 12px; font-size: 12.5px; line-height: 1.6;
+  word-break: break-all;
+}
+.step textarea:hover { border-color: var(--line); }
+.out {
+  margin: 0; padding: 10px 12px; border-radius: 8px;
+  background: var(--panel); color: var(--panel-ink);
+  font-size: 12.5px; line-height: 1.6;
+  white-space: pre-wrap; word-break: break-all;
+  min-height: 2.6em;
+}
+.out .k { color: var(--k); } .out .s { color: var(--s); } .out .n { color: var(--n); }
+.out.err { background: transparent; color: var(--error); padding-left: 0; }
+.note .fine { font-size: 13px; color: var(--muted); margin: 18px 0 0; }
+
+/* Sections */
+section.block { border-top: 1px solid var(--line); padding: 88px 0; }
+h2 { font-size: clamp(32px, 4.2vw, 50px); line-height: 1.05; margin: 0 0 16px; max-width: 18ch; }
+.intro { font-size: 19px; color: var(--muted); max-width: 36em; margin: 0 0 40px; }
+
+/* Views */
+.tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; width: max-content; max-width: 100%; margin-bottom: 18px; }
+.tabs button {
+  border: 0; background: transparent; color: var(--muted);
+  font: 500 15px "IBM Plex Sans", sans-serif;
+  padding: 8px 16px; border-radius: 7px; cursor: pointer;
+}
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+.shot { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.shot img { width: 100%; }
+.caption { font-size: 15px; color: var(--muted); margin: 14px 0 0; max-width: 46em; }
+
+/* Tools */
+.tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 48px; margin: 0; padding: 0; list-style: none; }
+.tools li { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 16px; }
+.tools code { color: var(--accent); font-size: 14px; padding-top: 2px; }
+.tools span { color: var(--muted); }
+
+/* Runners */
+.runners { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.runner h3 { font-family: "IBM Plex Sans Condensed", sans-serif; font-size: 22px; margin: 0 0 8px; }
+.runner p { margin: 0 0 16px; color: var(--muted); font-size: 16px; }
+pre.term {
+  margin: 0; padding: 16px 18px; border-radius: 10px;
+  background: var(--panel); color: var(--panel-ink);
+  font-size: 13px; line-height: 1.7; overflow-x: auto;
+}
+pre.term .c { color: #7D8597; }
+pre.term .p { color: var(--k); }
+
+/* Install */
+.install { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
+.install ol { margin: 0; padding-left: 22px; }
+.install li { margin-bottom: 14px; }
+.install li p { margin: 4px 0 0; color: var(--muted); font-size: 15px; }
+.inline { background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 14px; }
+
+footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--muted); font-size: 15px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+footer a { color: var(--muted); }
+
+@media (max-width: 900px) {
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 40px; padding-top: 24px; }
+  .runners, .install, .tools { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  body { font-size: 16px; }
+  .top nav a.hide-sm { display: none; }
+  .note { padding: 20px 16px 16px; }
+  .tools li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  section.block { padding: 64px 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .out { transition: background-color .2s ease; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./"><img src="icon.png" alt="" width="30" height="30">Toolbook</a>
+    <nav aria-label="Main">
+      <a class="hide-sm" href="#views">Views</a>
+      <a class="hide-sm" href="#tools">Tools</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/wenlingang/toolbook">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <div>
+        <h1>Notes that do the work.</h1>
+        <p class="lede">Toolbook is a notebook of developer tools. Write your reasoning in Markdown and drop in blocks that decode a JWT, turn CSV into SQL, sign a webhook or call an API. Blocks pass data with <code>$name</code>, and everything downstream recomputes as you type.</p>
+        <div class="actions">
+          <a class="btn" href="#install">Get Toolbook</a>
+          <span class="req">macOS app and CLI · free and open source</span>
+        </div>
+      </div>
+
+      <div class="note" aria-label="A live Toolbook note">
+        <h3>Why does login drop right away?</h3>
+        <p>Paste a token. The two blocks below it recompute as you type.</p>
+
+        <div class="step" id="s1">
+          <span class="node">1</span>
+          <header><span class="tool">Text</span><span class="io mono">→ <b>$header</b></span></header>
+          <textarea id="header" spellcheck="false" aria-label="The request header">Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1XzEwMDg2Iiwicm9sZSI6InRyYWRlciIsImlhdCI6MTc2MTcwMDAwMCwiZXhwIjoxNzYxNzAzNjAwfQ.x7Rk2Qm0sXq4yJb9fGv1TzW8cNnLpA3dEuH6iOoK5Ys</textarea>
+        </div>
+
+        <div class="step" id="s2">
+          <span class="node">2</span>
+          <header><span class="tool">JWT decode</span><span class="io mono"><b>$header</b> → <b>$jwt</b></span></header>
+          <pre class="out" id="jwt" aria-live="polite"></pre>
+        </div>
+
+        <div class="step" id="s3">
+          <span class="node">3</span>
+          <header><span class="tool">Timestamp</span><span class="io mono"><b>$jwt.payload.exp</b> → <b>$expires</b></span></header>
+          <pre class="out" id="expires" aria-live="polite"></pre>
+        </div>
+
+        <p class="fine">Decoded in your browser. Nothing you paste leaves this page.</p>
+      </div>
+    </div>
+
+    <section class="block" id="views">
+      <h2>One note, three ways to read it.</h2>
+      <p class="intro">A note is a plain Markdown file in <code>~/Toolbook</code>. Read it as a document with results under each block, edit the Markdown itself with results beside each block, or preview the page you would share.</p>
+      <div class="tabs" role="tablist" aria-label="Views">
+        <button role="tab" aria-selected="true" aria-controls="view" data-shot="doc">Document</button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="markdown">Markdown</button>
+        <button role="tab" aria-selected="false" aria-controls="view" data-shot="preview">Preview</button>
+      </div>
+      <div class="shot" id="view" role="tabpanel">
+        <img id="shot" src="screenshots/doc.png" width="1600" height="1000" alt="The document view: a note about a login token, with a decoded JWT and its expiry under each block.">
+      </div>
+      <p class="caption" id="caption">The document view. Each block shows its result right under it, and a green dot when it ran. The app's interface is in Chinese.</p>
+    </section>
+
+    <section class="block" id="tools">
+      <h2>Twenty tools, chained like steps.</h2>
+      <p class="intro">Each block names a tool in its first line. <code>name=</code> gives its result a name, and <code>input=$name</code> reads another block's. Mark a block <code>param</code> and callers can fill it in from outside.</p>
+      <ul class="tools">
+        <li><code>json · pick · filter</code><span>Format JSON, take fields with JSONPath, keep the rows that match</span></li>
+        <li><code>csv · map</code><span>CSV into a table, deduped and checked; rename and keep columns</span></li>
+        <li><code>to-json · to-sql</code><span>A table as JSON, or as INSERT and UPDATE statements for MySQL, PostgreSQL or SQLite</span></li>
+        <li><code>jwt-decode</code><span>A token's header and payload</span></li>
+        <li><code>base64 · url</code><span>Encode and decode</span></li>
+        <li><code>hash · hmac</code><span>Checksums and signatures, in hex and Base64</span></li>
+        <li><code>timestamp</code><span>Unix time and dates, across time zones, with how long ago</span></li>
+        <li><code>regex · diff</code><span>Matches and groups; what changed between two texts or JSON values</span></li>
+        <li><code>http</code><span>A request with headers and a body; runs only when you ask</span></li>
+        <li><code>js</code><span>A JavaScript expression over earlier results</span></li>
+        <li><code>flow</code><span>Another note, run as one step</span></li>
+        <li><code>secret · text</code><span>A secret read from the environment and never written to the note; plain input</span></li>
+      </ul>
+    </section>
+
+    <section class="block" id="run">
+      <h2>Runs where you work.</h2>
+      <p class="intro">The note is the program. The same file runs in the app, in a shell script, or in an AI agent's hands.</p>
+      <div class="runners">
+        <div class="runner">
+          <h3>The Mac app</h3>
+          <p>A native editor built on Native Shell. Thirteen themes, quick open, and an HTML page to share with each step from input to output.</p>
+<pre class="term"><span class="c"># ⌘↵ runs HTTP blocks</span>
+<span class="c"># ⌘/ switches to Markdown</span>
+<span class="c"># ⌘P opens any note</span></pre>
+        </div>
+        <div class="runner">
+          <h3>The terminal</h3>
+          <p>Pass inputs by name, read files or standard input, get JSON back. Exit codes tell scripts which block failed.</p>
+<pre class="term"><span class="p">$</span> toolbook run csv-to-sql.md \
+    --input rows=@data.csv
+<span class="p">$</span> cat data.csv | toolbook run \
+    csv-to-sql.md --input rows=@-</pre>
+        </div>
+        <div class="runner">
+          <h3>Claude and Codex</h3>
+          <p>The bundled skill teaches an agent to find your notes, see what they take, and run them. Export any note as a skill of its own.</p>
+<pre class="term"><span class="p">$</span> toolbook list --json
+<span class="p">$</span> toolbook describe csv-to-sql.md
+<span class="p">$</span> toolbook export-skill csv-to-sql.md</pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="install">
+      <div class="install">
+        <div>
+          <h2>Install</h2>
+          <p class="intro">There are no prebuilt downloads yet: build from source with Rust on macOS. The first launch fills <code>~/Toolbook</code> with thirteen example notes, from Nginx logs to Kubernetes secrets.</p>
+        </div>
+        <ol>
+          <li>Get the source.
+<pre class="term"><span class="p">$</span> git clone https://github.com/wenlingang/toolbook
+<span class="p">$</span> cd toolbook</pre></li>
+          <li>Install the command line tool.
+<pre class="term"><span class="p">$</span> cargo install --path crates/toolbook-cli</pre></li>
+          <li>Build the app with the matching <span class="inline mono">nsh</span>.
+<pre class="term"><span class="p">$</span> cargo install --git https://github.com/longbridge/nsh \
+    --rev 844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0 nsh-cli --locked
+<span class="p">$</span> cd app && nsh package . --target macos</pre>
+            <p>The app is not signed yet. The first time you open it, go to System Settings → Privacy &amp; Security and click Open Anyway.</p></li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Toolbook is open source under the Apache-2.0 license.</span>
+    <span><a href="https://github.com/wenlingang/toolbook">Source</a> · <a href="https://github.com/wenlingang/toolbook/blob/main/README.zh-CN.md">简体中文说明</a> · <a href="https://wenlingang.github.io/">More projects</a></span>
+  </footer>
+</div>
+
+<script>
+(() => {
+  // The live note: block 1 feeds block 2, block 2 feeds block 3.
+  const header = document.getElementById("header");
+  const jwtOut = document.getElementById("jwt");
+  const expOut = document.getElementById("expires");
+  const steps = [2, 3].map((n) => document.getElementById("s" + n));
+
+  const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+  // Pretty JSON with its keys, strings and numbers colored.
+  const colored = (v) =>
+    esc(JSON.stringify(v, null, 2)).replace(
+      /("(?:\\.|[^"\\])*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+      (m, str, colon, num) => (str ? `<span class="${colon ? "k" : "s"}">${str}</span>${colon || ""}` : `<span class="n">${num}</span>`),
+    );
+  const b64url = (part) => {
+    const s = part.replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(s + "===".slice((s.length + 3) % 4));
+    return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+  };
+  const ago = (seconds) => {
+    const units = [["day", 86400], ["hour", 3600], ["minute", 60]];
+    const abs = Math.abs(seconds);
+    for (const [name, size] of units) {
+      const n = Math.floor(abs / size);
+      if (n >= 1) return `${n} ${name}${n > 1 ? "s" : ""} ${seconds < 0 ? "ago" : "from now"}`;
+    }
+    return seconds < 0 ? "just now" : "in under a minute";
+  };
+  const show = (el, step, html, bad) => {
+    el.innerHTML = html;
+    el.classList.toggle("err", bad);
+    step.classList.toggle("bad", bad);
+  };
+
+  const run = () => {
+    let jwt = null;
+    try {
+      const token = header.value.trim().replace(/^Authorization:\s*/i, "").replace(/^Bearer\s+/i, "");
+      const parts = token.split(".");
+      if (parts.length !== 3) throw new Error("a JWT has three parts separated by dots");
+      jwt = { header: JSON.parse(b64url(parts[0])), payload: JSON.parse(b64url(parts[1])) };
+      show(jwtOut, steps[0], colored(jwt), false);
+    } catch (e) {
+      show(jwtOut, steps[0], esc("✗ " + (e.message || "not a JWT")), true);
+    }
+    if (!jwt) return show(expOut, steps[1], "Upstream block 2 ($jwt) failed", true);
+    const exp = jwt.payload.exp;
+    if (typeof exp !== "number") return show(expOut, steps[1], "✗ the payload has no exp", true);
+    const d = new Date(exp * 1000);
+    const local = d.toLocaleString("sv-SE", { hour12: false }).replace("T", " ");
+    show(expOut, steps[1], colored({
+      unix: exp,
+      utc: d.toISOString().replace("T", " ").slice(0, 19),
+      local,
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      relative: ago(exp - Date.now() / 1000),
+    }), false);
+  };
+  header.addEventListener("input", run);
+  run();
+
+  // The views.
+  const captions = {
+    doc: ["The document view: a note about a login token, with a decoded JWT and its expiry under each block.", "The document view. Each block shows its result right under it, and a green dot when it ran. The app's interface is in Chinese."],
+    markdown: ["The Markdown view: the source of a CSV-to-SQL note, with each block's result beside its closing fence.", "The Markdown view. Edit the file itself; each block's result sits beside its closing fence."],
+    preview: ["The preview: a shared page with each step on a line, its input, and its result in a dark panel.", "The preview. The page you share: each step from input to output, as one static HTML file with no scripts."],
+  };
+  const img = document.getElementById("shot");
+  const caption = document.getElementById("caption");
+  const tabs = [...document.querySelectorAll(".tabs button")];
+  const pick = (tab) => {
+    tabs.forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
+    const key = tab.dataset.shot;
+    img.src = `screenshots/${key}.png`;
+    img.alt = captions[key][0];
+    caption.textContent = captions[key][1];
+  };
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => pick(t));
+    t.addEventListener("keydown", (e) => {
+      const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (!d) return;
+      const next = tabs[(i + d + tabs.length) % tabs.length];
+      next.focus();
+      pick(next);
+    });
+  });
+})();
+</script>
+</body>
+</html>
