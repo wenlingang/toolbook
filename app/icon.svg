@@ -8,8 +8,11 @@
       <feGaussianBlur stdDeviation="22"/>
     </filter>
   </defs>
-  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
-  <rect x="64" y="64" width="896" height="896" rx="200" fill="none" stroke="#22314a" stroke-width="8"/>
+  <!-- The macOS icon grid: an 824-point rounded square centred on the
+       1024 canvas, so the system uses the icon's own shape. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="104" y="104" width="816" height="816" rx="181" fill="none" stroke="#22314a" stroke-width="8"/>
+  <g transform="translate(512 512) scale(0.92) translate(-512 -512)">
   <rect x="290" y="210" width="450" height="600" rx="48" fill="none" stroke="#3a4a63" stroke-width="22"/>
   <line x1="360" y1="210" x2="360" y2="810" stroke="#3a4a63" stroke-width="14"/>
   <g filter="url(#glow)" opacity="0.9">
@@ -20,4 +23,5 @@
   <circle cx="440" cy="500" r="44" fill="#0fd3c3"/>
   <circle cx="600" cy="580" r="48" fill="#ffb547"/>
   <circle cx="600" cy="700" r="44" fill="#0fd3c3"/>
+  </g>
 </svg>
