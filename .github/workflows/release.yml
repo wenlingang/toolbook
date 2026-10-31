@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  NSH_REV: 844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            app -> app/target
+      - name: The nsh command line, built from the commit the app depends on
+        id: nsh-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/nsh
+          key: nsh-cli-${{ runner.os }}-${{ env.NSH_REV }}
+      - if: steps.nsh-cache.outputs.cache-hit != 'true'
+        run: cargo install --git https://github.com/longbridge/nsh --rev "$NSH_REV" nsh-cli --locked
+      - name: Check tag matches the versions
+        if: startsWith(github.ref, 'refs/tags/')
+        run: scripts/check-version.sh "$GITHUB_REF_NAME"
+      - run: cargo test --workspace --locked
+      - name: App tests
+        run: cd app && TOOLBOOK_HOME="$(mktemp -d)/lib" nsh test .
+      # Build everything before the release key exists on this runner: build scripts and proc macros
+      # must never run while the key is unlocked in the keychain.
+      - name: Build the app (before importing the certificate)
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: scripts/build-app.sh
+      - name: Import signing certificate
+        env:
+          P12: ${{ secrets.RELEASE_CERT_P12 }}
+          P12_PASSWORD: ${{ secrets.RELEASE_CERT_PASSWORD }}
+        run: scripts/ci-import-cert.sh
+      - name: Sign and package
+        run: scripts/package.sh
+      - name: Upload dry-run artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: toolbook-dmg
+          path: target/release-dist/Toolbook-*.dmg*
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(scripts/app-version.sh)
+          dmg="target/release-dist/Toolbook-$version.dmg"
+          sha=$(cut -d' ' -f1 "$dmg.sha256")
+          scripts/release-notes.sh "$version" "$sha" > "$RUNNER_TEMP/notes.md"
+          # The annotated tag's message becomes the notes shown in the in-app update dialog.
+          git fetch --force --depth=1 origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/update-notes.txt"
+          scripts/update-manifest.sh "$version" "$sha" "$(stat -f %z "$dmg")" "$RUNNER_TEMP/update-notes.txt" > "$RUNNER_TEMP/latest.json"
+          # A pre-release (vX.Y.Z-rc1) must not become releases/latest, which every installed copy updates to.
+          prerelease=()
+          [[ $version == *-* ]] && prerelease=(--prerelease)
+          # Versionless copy: releases/latest/download/Toolbook.dmg is a download link that never goes stale.
+          cp "$dmg" "$RUNNER_TEMP/Toolbook.dmg"
+          gh release create "$GITHUB_REF_NAME" "$dmg" "$dmg.sha256" "$RUNNER_TEMP/latest.json" "$RUNNER_TEMP/Toolbook.dmg" \
+            --title "Toolbook $version" --notes-file "$RUNNER_TEMP/notes.md" --generate-notes "${prerelease[@]}"
+      - name: Remove temporary keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/release.keychain-db" 2>/dev/null || true

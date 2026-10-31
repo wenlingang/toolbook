@@ -13,6 +13,11 @@ nsh-core = { git = "https://github.com/longbridge/nsh", rev = "844bf1ea368a50a32
 nsh-base = { git = "https://github.com/longbridge/nsh", rev = "844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0" }
 toolbook-core = { path = "../crates/toolbook-core" }
 serde_json = { version = "1", features = ["preserve_order"] }
+serde = { version = "1", features = ["derive"] }
+semver = "1"
+sha2 = "0.10"
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSResponder"] }
 
 [dev-dependencies]
 nsh-engine = { git = "https://github.com/longbridge/nsh", rev = "844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0" }

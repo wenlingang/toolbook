@@ -1,6 +1,6 @@
 {
   "name": "Toolbook",
-  "id": "dev.toolbook.app",
+  "id": "io.github.wenlingang.toolbook",
   "version": "0.1.0",
   "build": 1,
   "rust": ".",

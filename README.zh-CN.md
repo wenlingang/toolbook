@@ -99,6 +99,19 @@ cd app && TOOLBOOK_HOME=$(mktemp -d)/lib nsh test .   # 应用全部测试（含
 
 应用的测试会改名、移动、删除笔记。如果用的是 `~/Toolbook`，测试会拒绝运行，所以一定要把 `TOOLBOOK_HOME` 指到一个空的临时目录。
 
+## 发布与更新
+
+推送 `v*` 标签会自动构建、签名并发布（`.github/workflows/release.yml`）。应用用一张长期有效的自签名证书「Toolbook Release」签名，证书指纹固定在 `scripts/release-cert.sha1`；没有经过 Apple 公证。应用启动后不久检查一次，之后每天一次（也可以点 **Toolbook › 检查更新…**），读取 `releases/latest/download/latest.json`；只有新版由同一张证书签名、而且版本号和清单一致时才会安装。
+
+1. 只做一次：运行 `scripts/release-cert.sh`，提交 `scripts/release-cert.sha1`，再按它的提示设置 `RELEASE_CERT_P12` 和 `RELEASE_CERT_PASSWORD` 两个 secret。证书一定要备份：丢了以后，用户只能手动安装之后的每个版本。
+2. 每次发布：把 `Cargo.toml`、`app/Cargo.toml`、`app/nsh.json` 里的版本号改好，再推送一个带注释的标签；注释会显示在更新对话框里。
+
+```sh
+git tag -a v0.2.0 -m "Toolbook 0.2.0
+- 改了什么"
+git push origin v0.2.0
+```
+
 ## 许可证
 
 [Apache-2.0](LICENSE)

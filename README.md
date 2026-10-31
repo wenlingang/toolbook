@@ -99,6 +99,19 @@ cd app && TOOLBOOK_HOME=$(mktemp -d)/lib nsh test .   # all app tests, TSX inclu
 
 The app tests rename, move and trash notes. They refuse to run against `~/Toolbook`, so always point `TOOLBOOK_HOME` at an empty temporary folder.
 
+## Releases and updates
+
+Pushing a `v*` tag builds, signs and publishes a release (`.github/workflows/release.yml`). The app is signed with a long-lived self-signed certificate, "Toolbook Release", whose fingerprint is pinned in `scripts/release-cert.sha1`; it is not notarized by Apple. The app checks `releases/latest/download/latest.json` shortly after launch and once a day (or from **Toolbook › 检查更新…**), and installs an update only when it is signed by that same certificate and has the version the manifest names.
+
+1. Once: `scripts/release-cert.sh`, commit `scripts/release-cert.sha1`, and set the `RELEASE_CERT_P12` and `RELEASE_CERT_PASSWORD` secrets as it says. Back up the certificate: losing it means users must install every later version by hand.
+2. Each release: raise the version in `Cargo.toml`, `app/Cargo.toml` and `app/nsh.json`, then push an annotated tag; its message becomes the notes in the update dialog.
+
+```sh
+git tag -a v0.2.0 -m "Toolbook 0.2.0
+- What changed"
+git push origin v0.2.0
+```
+
 ## License
 
 [Apache-2.0](LICENSE)

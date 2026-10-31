@@ -1,8 +1,8 @@
 import { colorScheme, effect, keymap, mount, Scroll, signal, Storage, Text, View } from "nsh";
 import type { InputRef, ViewRef } from "nsh";
-import { Input, Scrollbar } from "nsh/base";
+import { AlertDialog, Input, Scrollbar } from "nsh/base";
 import { Menu } from "nsh/desktop";
-import { Library, MarkdownView, NoteEditor, PreviewView, Share, Themes } from "toolbook/native";
+import { Library, MarkdownView, NoteEditor, PreviewView, Share, Themes, Updater } from "toolbook/native";
 
 type Note = { path: string; name: string; dir: string };
 
@@ -358,11 +358,89 @@ const matches = () => {
   return notes().filter((n) => !q || n.name.toLowerCase().includes(q) || n.dir.toLowerCase().includes(q));
 };
 
+// Updates: a look shortly after launch and then once a day (unless turned
+// off), and from the app menu. A version the user skipped is not offered by
+// the automatic look again.
+const autoUpdate = signal(true);
+let updating = false;
+Storage.getItem("update.auto").then((v) => autoUpdate.set(v !== "off"));
+
+function setAutoUpdate(on: boolean) {
+  autoUpdate.set(on);
+  Storage.setItem("update.auto", on ? "on" : "off");
+}
+
+async function checkForUpdates(manual: boolean) {
+  if (updating || (!manual && !autoUpdate())) return;
+  updating = true;
+  try {
+    if (manual) status.set("正在检查更新…");
+    const found = await Updater.check();
+    if (!found) {
+      if (manual) {
+        status.set("");
+        await AlertDialog.show({
+          title: "已是最新版本",
+          description: `Toolbook ${Updater.current()} 是目前最新的版本。`,
+          actions: [{ id: "ok", label: "好" }],
+        });
+      }
+      return;
+    }
+    status.set("");
+    if (!manual && (await Storage.getItem("update.skip")) === found.version) return;
+    const details = found.notes ? `\n\n${found.notes}` : "";
+    const { action } = await AlertDialog.show({
+      title: `Toolbook ${found.version} 可以更新了`,
+      description: `当前版本是 ${Updater.current()}。安装后 Toolbook 会自动重新打开。${details}`,
+      actions: [
+        { id: "install", label: "安装并重新打开", role: "default" },
+        { id: "later", label: "稍后", role: "cancel" },
+        { id: "skip", label: "跳过这个版本" },
+      ],
+      closeOnEscape: true,
+    });
+    if (action === "skip") Storage.setItem("update.skip", found.version);
+    if (action !== "install") return;
+    const progress = setInterval(() => status.set(Updater.status()), 300);
+    try {
+      await Updater.install();
+    } finally {
+      clearInterval(progress);
+    }
+    status.set("更新已安装，正在重新打开…");
+    Updater.relaunch();
+  } catch (e) {
+    status.set("");
+    // An automatic look that fails (offline) says nothing; one asked for does.
+    if (manual) {
+      await AlertDialog.show({ title: "更新失败", description: String(e), actions: [{ id: "ok", label: "好" }] });
+    }
+  } finally {
+    updating = false;
+  }
+}
+
+setTimeout(() => {
+  checkForUpdates(false);
+  setInterval(() => checkForUpdates(false), 24 * 60 * 60 * 1000);
+}, 30 * 1000);
+
 effect(() => {
   const themes = Themes.list();
   const now = theme();
   Menu.setApplicationMenu([
-    { label: "Toolbook", submenu: [{ role: "about" }, { type: "separator" }, { role: "hide" }, { role: "quit" }] },
+    {
+      label: "Toolbook",
+      submenu: [
+        { role: "about" },
+        { label: "检查更新…", onSelect: () => checkForUpdates(true) },
+        { label: "自动检查更新", checked: autoUpdate(), onSelect: () => setAutoUpdate(!autoUpdate()) },
+        { type: "separator" },
+        { role: "hide" },
+        { role: "quit" },
+      ],
+    },
     {
       label: "文件",
       submenu: [

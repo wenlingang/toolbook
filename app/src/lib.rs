@@ -4,6 +4,7 @@ mod blocks;
 pub mod bridge;
 pub mod editor;
 pub mod highlight;
+pub mod install;
 pub mod library;
 pub mod markdown_view;
 mod memos;
@@ -11,6 +12,8 @@ mod secrets;
 pub mod share;
 mod slash;
 pub mod themes;
+pub mod update;
+pub mod updater;
 
 use nsh_core::prelude::*;
 
@@ -23,5 +26,6 @@ fn native(registry: &mut Registry) {
         .register::<share::PreviewView>()
         .module::<themes::Themes>()
         .module::<library::Library>()
-        .module::<share::Share>();
+        .module::<share::Share>()
+        .module::<updater::Updater>();
 }
