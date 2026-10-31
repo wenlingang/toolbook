@@ -1,7 +1,7 @@
 {
   "name": "Toolbook",
   "id": "io.github.wenlingang.toolbook",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "build": 1,
   "rust": ".",
   "appearance": "system",
