@@ -74,11 +74,13 @@ function newNote() {
   newNoteIn(dir || "草稿");
 }
 
-// The note or category being renamed in place, and its new name.
-const renaming = signal<{ kind: "note" | "dir"; key: string } | null>(null);
+// The note or category being renamed in place, and its new name. A note is
+// renamed in the sidebar ("note") or in the top bar ("title").
+type RenameKind = "note" | "title" | "dir";
+const renaming = signal<{ kind: RenameKind; key: string } | null>(null);
 const renameText = signal("");
 
-function startRename(kind: "note" | "dir", key: string, name: string) {
+function startRename(kind: RenameKind, key: string, name: string) {
   renaming.set({ kind, key });
   renameText.set(name);
 }
@@ -92,7 +94,7 @@ function commitRename() {
   const name = renameText().trim();
   if (!r || !name) return cancelRename();
   try {
-    if (r.kind === "note") {
+    if (r.kind !== "dir") {
       const was = current() === r.key;
       const path = Library.rename(r.key, name);
       refreshLibrary();
@@ -498,7 +500,7 @@ function AppIcon() {
   );
 }
 
-function RenameInput() {
+function RenameInput(props: { class?: string }) {
   // Bound while renaming, removed with the field.
   keymap.bind("escape", cancelRename, { when: "always" });
   return (
@@ -509,7 +511,7 @@ function RenameInput() {
       onChange={(e) => renameText.set(e.value)}
       onSubmit={commitRename}
       onBlur={commitRename}
-      class="mx-2 px-2 py-1 text-sm rounded-md bg-background border border-primary"
+      class={props.class ?? "mx-2 px-2 py-1 text-sm rounded-md bg-background border border-primary"}
     />
   );
 }
@@ -646,7 +648,20 @@ function TopBar() {
   );
   return (
     <View class="flex-row items-center gap-3 px-4 pt-8 pb-2 border-b border-border">
-      <Text selectable class="text-base font-semibold text-foreground">{noteName()}</Text>
+      {renaming()?.kind === "title" ? (
+        <View class="w-64">
+          <RenameInput class="px-2 py-0.5 text-base font-semibold rounded-md bg-background border border-primary" />
+        </View>
+      ) : (
+        // A double click renames the note.
+        <View
+          testID="note-title"
+          accessibilityLabel={`${noteName()}（双击重命名）`}
+          onPress={(e) => e.clickCount >= 2 && current() && startRename("title", current(), noteName())}
+        >
+          <Text class="text-base font-semibold text-foreground">{noteName()}</Text>
+        </View>
+      )}
       <Text class="flex-1 text-xs text-muted-foreground">{status()}</Text>
       <View role="button" onPress={() => quickOpen.set(true)} class="px-2 py-1">
         <Text class="text-xs text-muted-foreground">⌘P 打开</Text>

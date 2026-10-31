@@ -31,6 +31,36 @@ pub(crate) struct ToolBlock {
     /// The editor's selection (`from`, `to`): a block it covers whole shows
     /// as selected, as after ⌘A.
     pub(crate) selection: Signal<(usize, usize)>,
+    /// The settings line being typed in, if any: ⌘A selects its text, not
+    /// the whole note.
+    pub(crate) info_focus: Signal<Option<InfoFocus>>,
+}
+
+/// A block's settings line with the keyboard focus.
+#[derive(Clone, Copy)]
+pub(crate) struct InfoFocus {
+    /// Which block's (one per element made).
+    id: u64,
+    input: ElementRef,
+    /// Its text's length, in UTF-16 units.
+    len: u32,
+}
+
+impl PartialEq for InfoFocus {
+    fn eq(&self, other: &Self) -> bool {
+        (self.id, self.len) == (other.id, other.len)
+    }
+}
+
+impl InfoFocus {
+    /// Selects the whole line.
+    pub(crate) fn select_all(&self) {
+        self.input.set_selection(0, self.len);
+    }
+}
+
+fn utf16_len(s: &str) -> u32 {
+    s.encode_utf16().count() as u32
 }
 
 fn language(node: &Node) -> String {
@@ -184,8 +214,17 @@ impl NodeView for ToolBlock {
         };
         let edit_session = cx.session.clone();
         let edit_pos = cx.get_pos();
+        let info_ref = element_ref();
+        let info_focus = self.info_focus;
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let id = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let focus_len = move |len: u32| {
+            info_focus.set(Some(InfoFocus { id, input: info_ref, len }));
+        };
+        let line_len = move || utf16_len(&language(&node_sig.get_untracked()));
 
-        // Selected: picked as a whole, or inside a selection that covers it.
+        // Selected: picked as a whole, or its text all inside the selection
+        // (⌘A in the block, or a selection over it).
         let selection = self.selection;
         let cover_pos = cx.get_pos();
         let marked = move || {
@@ -194,7 +233,7 @@ impl NodeView for ToolBlock {
             }
             let (from, to) = selection.get();
             let size = node_sig.get().node_size();
-            from < to && cover_pos().is_some_and(|p| from <= p && p + size <= to)
+            from < to && cover_pos().is_some_and(|p| from <= p + 1 && p + size - 1 <= to)
         };
         let marked_bg = marked.clone();
         let marked_label = marked.clone();
@@ -232,6 +271,17 @@ impl NodeView for ToolBlock {
                     .gap(px(8.0))
                     .px(px(10.0))
                     .py(px(4.0))
+                    // The settings line takes its own presses: the editor
+                    // would take the focus from it, and select in the
+                    // block's text on a double click.
+                    // A press here goes to its field (a double one selects
+                    // the whole line).
+                    .on_press(move |e: &PressEvent| {
+                        info_ref.focus();
+                        if e.clicks >= 2 {
+                            info_ref.set_selection(0, line_len());
+                        }
+                    })
                     .child(view().w(px(8.0)).h(px(8.0)).rounded(px(4.0)).bg(move || {
                         let t = theme();
                         match result_for_dot().map(|r| describe(&r).1) {
@@ -244,12 +294,22 @@ impl NodeView for ToolBlock {
                         // The info string, editable: tool, name and settings.
                         nsh_core::element::input()
                             .test_id(info_id)
+                            .element_ref(&info_ref)
                             .value(info_value)
                             .font_family(MONO)
                             .text_size(px(12.0))
                             .text_color(move || theme().primary)
                             .flex_1()
+                            .on_focus(move || focus_len(line_len()))
+                            .on_blur(move || {
+                                if info_focus.get_untracked().is_some_and(|f| f.id == id) {
+                                    info_focus.set(None);
+                                }
+                            })
                             .on_change(move |v: &str| {
+                                if info_focus.get_untracked().is_some_and(|f| f.id == id) {
+                                    focus_len(utf16_len(v));
+                                }
                                 let Some(pos) = edit_pos() else { return };
                                 let mut tr = edit_session.state().tr();
                                 if tr

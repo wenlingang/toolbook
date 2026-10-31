@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use crate::doc::Block;
 use crate::engine::RunOptions;
+use crate::fence::FenceInfo;
 use crate::value::Value;
 
 mod base64;
@@ -104,6 +105,12 @@ pub trait Tool: Send + Sync {
     /// Whether `{{ name }}` in its content is replaced.
     fn template(&self) -> bool {
         false
+    }
+    /// What is wrong with the block as written, said before it runs (a
+    /// manual block's too, which runs only on ⌘↵).
+    fn check(&self, info: &FenceInfo, content: &str) -> Result<(), ToolError> {
+        let _ = (info, content);
+        Ok(())
     }
 }
 

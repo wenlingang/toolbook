@@ -6,7 +6,11 @@ use std::time::Duration;
 use serde_json::{Map, Value as Json, json};
 
 use super::{Tool, ToolCtx, ToolError};
+use crate::fence::FenceInfo;
 use crate::value::Value;
+
+/// How a request is written.
+const HOW: &str = "请求写在块里：第一行如 POST https://…，下面是请求头，空一行后是请求体，用 {{ params }} 引用前面的块";
 
 pub(super) struct Http;
 
@@ -19,9 +23,22 @@ impl Tool for Http {
         true
     }
 
+    fn check(&self, info: &FenceInfo, content: &str) -> Result<(), ToolError> {
+        // The request is the block's text, not settings: `body=`, `input=`
+        // would be dropped without a word.
+        if !info.attrs.is_empty() {
+            let keys: Vec<&str> = info.attrs.iter().map(|(k, _)| k.as_str()).collect();
+            return Err(ToolError::Failed(format!("http 块不认设置 {}：{HOW}", keys.join("、"))));
+        }
+        if content.trim().is_empty() {
+            return Err(ToolError::Incomplete(HOW.into()));
+        }
+        Ok(())
+    }
+
     fn run(&self, ctx: &ToolCtx) -> Result<Value, ToolError> {
         let mut lines = ctx.content.lines().skip_while(|l| l.trim().is_empty());
-        let first = lines.next().ok_or_else(|| ToolError::Incomplete("请写上请求，如 GET https://…".into()))?;
+        let first = lines.next().ok_or_else(|| ToolError::Incomplete(HOW.into()))?;
         let mut words = first.split_whitespace();
         let (method, url) = match (words.next(), words.next()) {
             (Some(m), Some(u)) => (m.to_uppercase(), u.to_owned()),

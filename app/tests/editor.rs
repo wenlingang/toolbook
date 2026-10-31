@@ -144,6 +144,28 @@ fn editing_settings_line_updates_info() {
     );
 }
 
+#[test]
+fn pressing_settings_line_edits_it_not_the_text() {
+    let p = note(
+        "set.md",
+        "---\ntoolbook: 1\n---\n说明\n\n```http name=r\nGET http://127.0.0.1:9/\n```\n",
+    );
+    let mut app = start(&p);
+    app.wait_for("text:说明").unwrap();
+    // A double press: the editor used to take it, selecting a word of the
+    // request, which the next key replaced.
+    app.press("id:block-info").unwrap();
+    app.press("id:block-info").unwrap();
+    app.press_key("end").unwrap();
+    app.press_key("x").unwrap();
+    app.wait(Duration::from_millis(1200)).unwrap();
+    let saved = std::fs::read_to_string(&p).unwrap();
+    assert!(
+        saved.contains("```http name=rx\nGET http://127.0.0.1:9/\n```"),
+        "{saved}"
+    );
+}
+
 #[derive(Clone, PartialEq, Props)]
 struct ClosableProps {
     path: String,

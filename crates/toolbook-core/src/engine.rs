@@ -293,6 +293,13 @@ fn run_block_inner(
     {
         content = v.clone();
     }
+    if let Err(e) = t.check(info, &content) {
+        let status = match e {
+            ToolError::Incomplete(m) => BlockStatus::Incomplete(m),
+            ToolError::Failed(m) => BlockStatus::Error(m),
+        };
+        return (status, Vec::new(), Vec::new(), None);
+    }
 
     let mut deps: Vec<VarRef> = info.refs().cloned().collect();
     if t.template() {

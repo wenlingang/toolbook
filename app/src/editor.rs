@@ -7,6 +7,10 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
+use nsh_base::rich_editor::commands::base::select_all;
+use nsh_base::rich_editor::commands::tiptap::set_text_selection;
+use nsh_base::rich_editor::commands::{Dispatch, command};
+use nsh_base::rich_editor::extensions::keymap::keymap;
 use nsh_base::rich_editor::extensions::{markdown::markdown, starter};
 use nsh_base::rich_editor::state::{EditorState, EditorStateConfig};
 use nsh_base::rich_editor::view::{EditorSession, NodeViews, RichEditorClasses, rich_editor};
@@ -170,6 +174,29 @@ impl Runner {
     }
 }
 
+/// The text of the code block the selection is in, unless it is all
+/// selected already (or empty).
+fn block_text(state: &EditorState) -> Option<(usize, usize)> {
+    let sel = state.selection();
+    let (from, to) = (sel.from(), sel.to());
+    let a = state.doc().resolve(from).ok()?;
+    let b = state.doc().resolve(to).ok()?;
+    if !a.same_parent(&b) || a.parent().ty().name() != "codeBlock" {
+        return None;
+    }
+    let (start, end) = (a.start(a.depth), a.end(a.depth));
+    (start < end && (from, to) != (start, end)).then_some((start, end))
+}
+
+/// Selects the text of the code block the selection is in (see
+/// [`block_text`]); does not apply elsewhere.
+fn select_block_text(state: &EditorState, dispatch: Dispatch<'_>) -> bool {
+    let Some((from, to)) = block_text(state) else {
+        return false;
+    };
+    set_text_selection(from, to)(state, dispatch)
+}
+
 /// What shows while no note is open: nothing to type into, so nothing is lost.
 fn empty_state() -> AnyElement {
     view()
@@ -203,6 +230,7 @@ fn open(
     let save_error = signal(None::<String>);
     let secrets_changed = signal(0u64);
     let selection = signal((0usize, 0usize));
+    let info_focus = signal(None::<crate::blocks::InfoFocus>);
     let src = std::fs::read_to_string(&path).unwrap_or_default();
     let doc = Document::parse(&src);
     let schema = schema();
@@ -237,7 +265,12 @@ fn open(
     });
 
     // The `/` menu first: its keys come before the keymaps' (Enter, arrows).
-    let mut plugins = vec![slash::plugin(on_key)];
+    // ⌘A in a block's text selects that text first: the editor's own
+    // binding (the whole note) hears the key before the menu does.
+    let mut plugins = vec![
+        slash::plugin(on_key),
+        keymap(vec![("Mod-a".into(), command(select_block_text))]),
+    ];
     plugins.extend(markdown(Default::default()));
     plugins.extend(starter::plugins(&schema));
     let state = EditorState::create(EditorStateConfig::new(schema).doc(node).plugins(plugins))
@@ -252,6 +285,7 @@ fn open(
                 path: path.clone(),
                 secrets_changed,
                 selection,
+                info_focus,
             }),
         ),
     );
@@ -272,16 +306,22 @@ fn open(
         move || to_markdown(front_matter.as_deref(), session.state().doc())
     };
 
-    // ⌘A: the whole note, ready to copy or delete.
+    // ⌘A: the whole note, ready to copy or delete; in a block's settings
+    // line, that line; in a block's text, that text first (as Notion does),
+    // the whole note once it is all selected.
     {
         let session = session.clone();
         let start = select_token.get_untracked();
         effect(move || {
             if select_token.get() != start {
                 untracked(|| {
-                    session.run(&nsh_base::rich_editor::commands::command(
-                        nsh_base::rich_editor::commands::base::select_all,
-                    ));
+                    if let Some(line) = info_focus.get() {
+                        line.select_all();
+                        return;
+                    }
+                    if !session.run(&command(select_block_text)) {
+                        session.run(&command(select_all));
+                    }
                     session.focus();
                 });
             }

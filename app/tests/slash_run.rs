@@ -257,3 +257,76 @@ fn select_all_marks_tool_blocks_selected() {
     app.wait(Duration::from_millis(200)).unwrap();
     assert_eq!(app.screen().count("label:工具块（已选中）"), Ok(2));
 }
+
+#[test]
+fn select_all_in_a_settings_line_stays_in_it() {
+    let p = note(
+        "info.md",
+        "---\ntoolbook: 1\n---\n第一段\n\n```hash name=b\nx\n```\n",
+    );
+    let mut app = start(&p);
+    app.wait_for("text:第一段").unwrap();
+    app.type_text("id:block-info", "").unwrap();
+    app.press("text:全选").unwrap();
+    app.press_key("backspace").unwrap();
+    app.wait(Duration::from_millis(1200)).unwrap();
+    // The line's text was selected, not the note: the rest is still there.
+    let saved = std::fs::read_to_string(&p).unwrap();
+    assert!(saved.contains("第一段") && saved.contains("\nx\n```"), "{saved}");
+}
+
+#[test]
+fn select_all_in_a_block_selects_the_block_then_the_note() {
+    let p = note(
+        "blk.md",
+        "---\ntoolbook: 1\n---\n第一段\n\n```hash name=b\nabc\ndef\n```\n\n最后一段\n",
+    );
+    let mut app = start(&p);
+    // The block's result: the note is laid out and run, so the press lands
+    // in the block's text.
+    app.wait_for("text:d53d6b91af7caf8fe3d8021f116270137c0079d579a1e16965da80c2ed138ffb").unwrap();
+    app.wait_for("text:第一段").unwrap();
+    app.wait(Duration::from_millis(300)).unwrap();
+    app.press("text:abc\ndef").unwrap();
+    // Once: the block's text.
+    app.press("text:全选").unwrap();
+    app.press_key("z").unwrap();
+    wait_file(&p, "```hash name=b\nz\n```");
+    let saved = std::fs::read_to_string(&p).unwrap();
+    assert!(saved.contains("第一段") && saved.contains("最后一段"), "{saved}");
+    // Twice: the whole note.
+    app.press("text:全选").unwrap();
+    app.press("text:全选").unwrap();
+    app.press_key("backspace").unwrap();
+    app.wait(Duration::from_millis(1200)).unwrap();
+    let saved = std::fs::read_to_string(&p).unwrap();
+    assert!(!saved.contains("第一段") && !saved.contains("```hash"), "{saved}");
+}
+
+#[test]
+fn cmd_a_key_in_a_block_selects_the_block_then_the_note() {
+    // The key itself, as on a Mac: the editor hears ⌘A before the menu does.
+    let p = note(
+        "key.md",
+        "---\ntoolbook: 1\n---\n第一段\n\n```hash name=b\nabc\ndef\n```\n\n最后一段\n",
+    );
+    let mut app = start(&p);
+    app.wait_for("text:d53d6b91af7caf8fe3d8021f116270137c0079d579a1e16965da80c2ed138ffb")
+        .unwrap();
+    app.wait(Duration::from_millis(300)).unwrap();
+    app.press("text:abc\ndef").unwrap();
+    app.press_key("cmd+a").unwrap();
+    app.wait(Duration::from_millis(200)).unwrap();
+    // The block shows as selected, its text all selected.
+    assert_eq!(app.screen().count("label:工具块（已选中）"), Ok(1));
+    app.press_key("z").unwrap();
+    wait_file(&p, "```hash name=b\nz\n```");
+    let saved = std::fs::read_to_string(&p).unwrap();
+    assert!(saved.contains("第一段") && saved.contains("最后一段"), "{saved}");
+    app.press_key("cmd+a").unwrap();
+    app.press_key("cmd+a").unwrap();
+    app.press_key("backspace").unwrap();
+    app.wait(Duration::from_millis(1200)).unwrap();
+    let saved = std::fs::read_to_string(&p).unwrap();
+    assert!(!saved.contains("第一段") && !saved.contains("```hash"), "{saved}");
+}

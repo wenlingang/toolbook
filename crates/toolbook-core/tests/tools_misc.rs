@@ -139,3 +139,19 @@ fn run_manual_always_sends_again_even_with_memo() {
     assert!(matches!(run_body(&body, &auto)[0], BlockStatus::Ok(_)));
     assert_eq!(hits.load(Ordering::SeqCst), 2);
 }
+
+#[test]
+fn http_says_how_to_write_a_request_before_it_is_run() {
+    // Settings in the fence line instead of a request: said at once, not
+    // only after ⌘↵.
+    let body = "```js name=params\n({ a: 1 })\n```\n```http body=params input=$params\n```\n";
+    match &run_body(body, &RunOptions::default())[1] {
+        BlockStatus::Error(m) => assert!(m.contains("body、input") && m.contains("{{ params }}"), "{m}"),
+        other => panic!("{other:?}"),
+    }
+    // No request yet: what to write.
+    match &run_body("```http\n```\n", &RunOptions::default())[0] {
+        BlockStatus::Incomplete(m) => assert!(m.contains("POST https://"), "{m}"),
+        other => panic!("{other:?}"),
+    }
+}

@@ -113,6 +113,18 @@ test("a note is renamed from its context menu", async () => {
   expect(app.count("text:csv-to-sql")).toBe(0);
 });
 
+test("a double click on the title renames the note", async () => {
+  const app = await open("./App.tsx", desktop);
+  await app.press("时区换算");
+  await app.press("id:note-title");
+  await app.press("id:note-title");
+  await app.clear("id:rename-input");
+  await app.type("id:rename-input", "时区\n");
+  // In the sidebar and the top bar.
+  expect(app.count("text:时区")).toBe(2);
+  expect(app.count("text:时区换算")).toBe(0);
+});
+
 test("a note moves to another category", async () => {
   const app = await open("./App.tsx", desktop);
   await app.rightClick("trace-慢请求");
