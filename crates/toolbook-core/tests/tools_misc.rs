@@ -175,3 +175,16 @@ fn js_errors_say_where_without_engine_stack() {
     assert_eq!(err("syntax error here("), "JS 出错：expecting ';'（第 1 行第 8 列）");
     assert_eq!(err("throw 42"), "JS 出错：42");
 }
+
+#[test]
+fn js_handles_inputs_of_several_megabytes() {
+    use toolbook_core::doc::Document;
+    use toolbook_core::engine::run;
+    let rows: Vec<serde_json::Value> =
+        (0..60_000).map(|i| json!({"id": i, "name": format!("user-{i:06}"), "city": "深圳", "tags": ["a", "b", "c"]})).collect();
+    let mut opts = RunOptions::default();
+    opts.overrides.insert("rows".into(), serde_json::to_string(&rows).unwrap());
+    let body = "---\ntoolbook: 1\n---\n```json name=rows param\n[]\n```\n```js name=n\n$rows.filter(r => r.id % 2 == 0).map(r => ({...r, city: r.city + '市'})).length\n```\n";
+    let report = run(&Document::parse(body), &opts, std::path::Path::new("."));
+    assert_eq!(report.blocks[1].status, BlockStatus::Ok(Value::Json(json!(30_000))), "{:?}", report.blocks[1].status);
+}

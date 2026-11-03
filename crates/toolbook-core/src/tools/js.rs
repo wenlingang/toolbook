@@ -12,7 +12,11 @@ use crate::value::Value;
 
 pub(super) struct Js;
 
-const MEMORY: usize = 32 * 1024 * 1024;
+/// The memory a run may use: a base, and room for its inputs (QuickJS needs
+/// about ten times a value's JSON size), up to a cap.
+const MEMORY_BASE: usize = 64 * 1024 * 1024;
+const MEMORY_PER_INPUT_BYTE: usize = 16;
+const MEMORY_CAP: usize = 1024 * 1024 * 1024;
 const TIME: Duration = Duration::from_secs(1);
 
 /// "cannot read property 'x' of null（第 1 行第 1 列）": the message and where in the block it
@@ -41,20 +45,31 @@ impl Tool for Js {
             return Err(ToolError::Incomplete("输入为空".into()));
         }
         let fail = |e: rquickjs::Error| ToolError::Failed(format!("JS 运行环境出错：{e}"));
+        let inputs: Vec<(&String, String)> = ctx
+            .vars
+            .iter()
+            .filter(|(name, _)| is_ident(name))
+            .map(|(name, v)| (name, v.to_json().to_string()))
+            .collect();
+        let input_bytes: usize = inputs.iter().map(|(_, j)| j.len()).sum();
+        let memory = MEMORY_BASE
+            .saturating_add(input_bytes.saturating_mul(MEMORY_PER_INPUT_BYTE))
+            .min(MEMORY_CAP);
+        let too_big = move || {
+            ToolError::Failed(format!("JS 内存不够（上限 {} MB），输入太大", memory / 1024 / 1024))
+        };
         let rt = Runtime::new().map_err(fail)?;
-        rt.set_memory_limit(MEMORY);
+        rt.set_memory_limit(memory);
         let deadline = Instant::now() + TIME;
         rt.set_interrupt_handler(Some(Box::new(move || Instant::now() > deadline)));
         let context = Context::full(&rt).map_err(fail)?;
         context.with(|js| {
             let globals = js.globals();
-            for (name, v) in &ctx.vars {
-                if !is_ident(name) {
-                    continue;
-                }
-                let value = js
-                    .json_parse(v.to_json().to_string())
-                    .map_err(|e| ToolError::Failed(format!("${name} 传给 JS 时出错：{e}")))?;
+            for (name, json) in inputs {
+                let value = js.json_parse(json).map_err(|e| match e {
+                    rquickjs::Error::Exception => too_big(),
+                    e => ToolError::Failed(format!("${name} 传给 JS 时出错：{e}")),
+                })?;
                 globals.set(format!("${name}"), value).map_err(fail)?;
             }
             let result: rquickjs::Value = js.eval(ctx.content.as_str()).catch(&js).map_err(|e| {
