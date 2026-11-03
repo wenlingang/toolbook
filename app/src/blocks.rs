@@ -205,18 +205,12 @@ impl NodeView for ToolBlock {
 
         let info_value = move || language(&node_sig.get());
         let tool = parse_info(&info_str).tool;
-        // A static id per tool, for tests and accessibility tools.
-        let info_id: &'static str =
-            match toolbook_core::doc::TOOL_NAMES.iter().find(|t| **t == tool) {
-                Some(t) => match *t {
-                    "pick" => "block-info-pick",
-                    "json" => "block-info-json",
-                    "base64" => "block-info-base64",
-                    "text" => "block-info-text",
-                    _ => "block-info",
-                },
-                None => "block-info",
-            };
+        // An id per tool (`block-info-http`), for tests and accessibility tools.
+        let info_id = if toolbook_core::doc::TOOL_NAMES.contains(&tool.as_str()) {
+            format!("block-info-{tool}")
+        } else {
+            "block-info".to_owned()
+        };
         let name_of = move || {
             parse_info(&language(&node_sig.get()))
                 .name
@@ -304,7 +298,7 @@ impl NodeView for ToolBlock {
                     .child(
                         // The info string, editable: tool, name and settings.
                         nsh_core::element::input()
-                            .test_id(info_id)
+                            .test_id(&info_id)
                             .element_ref(&info_ref)
                             .value(info_value)
                             .font_family(MONO)

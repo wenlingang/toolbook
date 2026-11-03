@@ -266,7 +266,7 @@ fn select_all_in_a_settings_line_stays_in_it() {
     );
     let mut app = start(&p);
     app.wait_for("text:第一段").unwrap();
-    app.type_text("id:block-info", "").unwrap();
+    app.type_text("id:block-info-hash", "").unwrap();
     app.press("text:全选").unwrap();
     app.press_key("backspace").unwrap();
     app.wait(Duration::from_millis(1200)).unwrap();

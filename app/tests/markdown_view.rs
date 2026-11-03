@@ -86,3 +86,45 @@ fn markdown_view_shows_failed_saves_and_empty_state() {
     let mut empty = start(std::path::Path::new("").to_path_buf().as_ref());
     see_part(&mut empty, "没有打开的笔记");
 }
+
+#[derive(Clone, PartialEq, Props)]
+struct SwitchProps {
+    path: String,
+}
+
+/// The Markdown view with a button that switches the theme to Dracula.
+#[component]
+fn Switch(props: SwitchProps) -> impl IntoElement {
+    view()
+        .flex_1()
+        .child(text("切换主题").on_press(|| {
+            let theme = toolbook_app::themes::builtin_theme("dracula").unwrap();
+            nsh_core::element::set_tokens(toolbook_app::themes::with_syntax_colors(theme).into_tokens());
+        }))
+        .child(toolbook_app::markdown_view::markdown_view().path(props.path.clone()))
+}
+
+#[test]
+fn switching_the_theme_recolors_the_markdown_view() {
+    let p = note("---\ntoolbook: 1\n---\n```text name=qq7\nx\n```\n```hash input=$qq7\n```\n");
+    let path = p.to_string_lossy().into_owned();
+    let mut config = EngineConfig {
+        viewport: Size::new(px(1000.0), px(900.0)),
+        ..EngineConfig::new(Root::new::<Switch>(move || SwitchProps { path: path.clone() }))
+    };
+    config.environment.os = Os::MacOs;
+    config.environment.idiom = Idiom::Desktop;
+    let mut app = Headless::start(config).unwrap();
+    see_part(&mut app, "input=$qq7");
+    let before = app.screen().span_style("text:$qq7").unwrap().color;
+    app.press("text:切换主题").unwrap();
+    app.wait(Duration::from_millis(200)).unwrap();
+    let after = app.screen().span_style("text:$qq7").unwrap().color;
+    assert_ne!(before, after);
+    let hex = |c: nsh_core::Color| {
+        let c = nsh_core::Rgba::from(c);
+        let to = |x: f32| (x.clamp(0.0, 1.0) * 255.0).round() as u8;
+        format!("#{:02x}{:02x}{:02x}", to(c.r), to(c.g), to(c.b))
+    };
+    assert_eq!(hex(after), "#ffb86c");
+}

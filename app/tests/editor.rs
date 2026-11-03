@@ -154,8 +154,8 @@ fn pressing_settings_line_edits_it_not_the_text() {
     app.wait_for("text:说明").unwrap();
     // A double press: the editor used to take it, selecting a word of the
     // request, which the next key replaced.
-    app.press("id:block-info").unwrap();
-    app.press("id:block-info").unwrap();
+    app.press("id:block-info-http").unwrap();
+    app.press("id:block-info-http").unwrap();
     app.press_key("end").unwrap();
     app.press_key("x").unwrap();
     app.wait(Duration::from_millis(1200)).unwrap();
