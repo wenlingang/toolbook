@@ -214,6 +214,54 @@ pub struct RunReport {
 }
 
 impl RunReport {
+    /// The report as it may show: every secret's value, wherever a result,
+    /// message or note repeats it, blanked out. One-way results (`hash`,
+    /// `hmac`) hold no such value and show as they are.
+    pub fn masked(mut self) -> RunReport {
+        let mut values: Vec<String> = Vec::new();
+        for b in &self.blocks {
+            values.extend(b.secrets.iter().filter(|v| !v.is_empty()).cloned());
+            if b.tool == "secret"
+                && let BlockStatus::Ok(Value::Text(v)) = &b.status
+                && !v.is_empty()
+            {
+                values.push(v.clone());
+            }
+        }
+        if values.is_empty() {
+            return self;
+        }
+        let scrub = |s: &mut String| {
+            for v in &values {
+                if s.contains(v.as_str()) {
+                    *s = s.replace(v.as_str(), "••••••");
+                }
+            }
+        };
+        fn walk(j: &mut serde_json::Value, scrub: &dyn Fn(&mut String)) {
+            match j {
+                serde_json::Value::String(s) => scrub(s),
+                serde_json::Value::Array(a) => a.iter_mut().for_each(|x| walk(x, scrub)),
+                serde_json::Value::Object(o) => o.values_mut().for_each(|x| walk(x, scrub)),
+                _ => {}
+            }
+        }
+        for b in &mut self.blocks {
+            if b.tool == "secret" {
+                continue;
+            }
+            match &mut b.status {
+                BlockStatus::Ok(Value::Text(t)) => scrub(t),
+                BlockStatus::Ok(Value::Json(j)) => walk(j, &scrub),
+                BlockStatus::Ok(Value::Table(t)) => t.rows.iter_mut().flatten().for_each(|c| scrub(c)),
+                BlockStatus::Error(m) | BlockStatus::Incomplete(m) => scrub(m),
+                _ => {}
+            }
+            b.notes.iter_mut().for_each(|n| scrub(n));
+        }
+        self
+    }
+
     /// The block that went wrong first, following `Upstream` back from block `index`, and why.
     pub fn root_cause(&self, mut index: usize) -> (usize, String) {
         loop {

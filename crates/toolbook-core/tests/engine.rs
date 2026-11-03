@@ -179,3 +179,21 @@ fn a_cancelled_run_stops_between_blocks() {
     assert!(!report.cancelled);
     assert_eq!(report.blocks.len(), 1);
 }
+
+#[test]
+fn masked_report_blanks_secret_values_out_of_what_shows() {
+    let mut opts = RunOptions::default();
+    opts.overrides.insert("key".into(), "s3cr3t-value".into());
+    let body = "```secret name=key\n```\n```text name=a input=$key\n```\n```js name=j\n({k: $key, n: 1})\n```\n```hmac name=h key=$key\nbody\n```\n";
+    let report = run(&note(body), &opts, Path::new(".")).masked();
+    assert_eq!(report.blocks[1].status, BlockStatus::Ok(Value::Text("••••••".into())));
+    match &report.blocks[2].status {
+        BlockStatus::Ok(Value::Json(j)) => assert_eq!(j, &serde_json::json!({"k": "••••••", "n": 1})),
+        other => panic!("{other:?}"),
+    }
+    // One-way results carry no value to blank out.
+    match &report.blocks[3].status {
+        BlockStatus::Ok(Value::Json(j)) => assert!(!j.to_string().contains('•'), "{j}"),
+        other => panic!("{other:?}"),
+    }
+}

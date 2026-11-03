@@ -72,7 +72,8 @@ impl Runner {
             let Ok(report) = job.await else { return };
             if this.generation.get() == my {
                 if !report.cancelled {
-                    (this.on_report)(report);
+                    // What shows never spells out a secret.
+                    (this.on_report)(report.masked());
                 }
             } else if run_manual {
                 // Typed over while the request was out: show it with the

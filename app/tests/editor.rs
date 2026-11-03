@@ -336,3 +336,19 @@ fn a_tool_block_in_a_plain_note_says_why_it_does_not_run() {
     let lines = app.screen().texts().iter().filter(|t| t.contains("toolbook: 1")).count();
     assert_eq!(lines, 1);
 }
+
+#[test]
+fn a_block_reading_a_secret_does_not_show_it() {
+    let body = "---\ntoolbook: 1\n---\n说明\n\n```secret name=key\n```\n\n```text name=echo input=$key\n```\n";
+    let p = note("sec-echo.md", body);
+    let mut app = start(&p);
+    see_part(&mut app, "缺少密钥");
+    app.type_text("id:block-secret", "whsec_echo_77").unwrap();
+    see_part(&mut app, "••••••");
+    let texts = app.screen().texts();
+    // Only the masked field may hold it; no result spells it out.
+    assert!(
+        texts.iter().filter(|t| t.contains("whsec_echo_77")).count() <= 1,
+        "{texts:?}"
+    );
+}
