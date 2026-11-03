@@ -2,7 +2,7 @@
 //! back to its file.
 
 use std::cell::Cell;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,10 +17,11 @@ use nsh_base::rich_editor::view::{EditorSession, NodeViews, RichEditorClasses, r
 use nsh_base::theme;
 use nsh_core::prelude::*;
 use toolbook_core::doc::Document;
-use toolbook_core::engine::{BlockResult, BlockStatus, Memo, RunOptions, run};
+use toolbook_core::engine::{BlockResult, BlockStatus};
 
 use crate::blocks::ToolBlock;
 use crate::bridge::{schema, to_editor_json, to_markdown};
+use crate::runner::Runner;
 use crate::slash;
 
 /// Waits this long after a change before running the note again.
@@ -128,50 +129,6 @@ pub fn NoteEditor(props: NoteEditorProps, cx: Scope<NoteEditorEvent>) -> impl In
             let path = PathBuf::from(props.path.get().to_string());
             untracked(move || open(path, results, props.run_token, props.select_token, cx))
         }))
-}
-
-/// Runs the note again: after `delay`, in the background, the latest
-/// request only.
-#[derive(Clone)]
-struct Runner {
-    path: PathBuf,
-    generation: Rc<Cell<u64>>,
-    memo: Memo,
-    base_dir: PathBuf,
-    results: Signal<Vec<BlockResult>>,
-    cx: Scope<NoteEditorEvent>,
-}
-
-impl Runner {
-    fn request(&self, markdown: String, delay: Duration, run_manual: bool) {
-        let my = self.generation.get() + 1;
-        self.generation.set(my);
-        let this = self.clone();
-        spawn(async move {
-            if !delay.is_zero() {
-                timer(delay).await;
-            }
-            if this.generation.get() != my {
-                return;
-            }
-            let memo = this.memo.clone();
-            let base_dir = this.base_dir.clone();
-            let secrets = crate::secrets::overrides(&this.path);
-            let job = background(async move {
-                let mut opts = RunOptions::from_process(run_manual);
-                opts.memo = Some(memo);
-                opts.overrides = secrets;
-                run(&Document::parse(&markdown), &opts, &base_dir)
-            });
-            if let Ok(report) = job.await
-                && this.generation.get() == my
-            {
-                this.cx
-                    .emit(NoteEditorEvent::Status(status_line(&report.blocks)));
-                this.results.set(report.blocks);
-            }
-        });
-    }
 }
 
 /// The text of the code block the selection is in, unless it is all
@@ -290,14 +247,10 @@ fn open(
         ),
     );
 
-    let runner = Runner {
-        path: path.clone(),
-        generation: Rc::new(Cell::new(0)),
-        memo: crate::memos::memo_for(&path),
-        base_dir: path.parent().map(Path::to_path_buf).unwrap_or_default(),
-        results,
-        cx,
-    };
+    let runner = Runner::new(&path, move |report| {
+        cx.emit(NoteEditorEvent::Status(status_line(&report.blocks)));
+        results.set(report.blocks);
+    });
     runner.request(src, Duration::ZERO, false);
 
     let front_matter = doc.front_matter.clone();

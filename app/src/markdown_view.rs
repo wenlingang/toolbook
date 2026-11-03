@@ -4,7 +4,7 @@
 //! its text, so copying or saving never takes them.
 
 use std::cell::{Cell, RefCell};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -16,7 +16,7 @@ use nsh_core::PointerEvents;
 use nsh_core::element::component_ref;
 use nsh_core::prelude::*;
 use toolbook_core::doc::{Document, Segment};
-use toolbook_core::engine::{BlockResult, BlockStatus, RunOptions, run};
+use toolbook_core::engine::{BlockResult, BlockStatus};
 
 use crate::highlight::decorations;
 
@@ -109,40 +109,10 @@ fn open(path: PathBuf, run_token: Prop<u32>, select_token: Prop<u32>) -> AnyElem
     let initial = std::fs::read_to_string(&path).unwrap_or_default();
     let source = signal(initial.clone());
     let results = signal(Vec::<BlockResult>::new());
-    let memo = crate::memos::memo_for(&path);
-    let base_dir: PathBuf = path.parent().map(Path::to_path_buf).unwrap_or_default();
-    let run_gen = Rc::new(Cell::new(0u64));
-    let secret_path = path.clone();
-
+    let runner = crate::runner::Runner::new(&path, move |report| results.set(report.blocks));
     let rerun = {
-        let run_gen = run_gen.clone();
-        move |text: String, delay: Duration, run_manual: bool| {
-            let my = run_gen.get() + 1;
-            run_gen.set(my);
-            let run_gen = run_gen.clone();
-            let memo = memo.clone();
-            let base_dir = base_dir.clone();
-            let secrets = crate::secrets::overrides(&secret_path);
-            spawn(async move {
-                if !delay.is_zero() {
-                    timer(delay).await;
-                }
-                if run_gen.get() != my {
-                    return;
-                }
-                let job = background(async move {
-                    let mut opts = RunOptions::from_process(run_manual);
-                    opts.memo = Some(memo);
-                    opts.overrides = secrets;
-                    run(&Document::parse(&text), &opts, &base_dir)
-                });
-                if let Ok(r) = job.await
-                    && run_gen.get() == my
-                {
-                    results.set(r.blocks);
-                }
-            });
-        }
+        let runner = runner.clone();
+        move |text: String, delay: Duration, run_manual: bool| runner.request(text, delay, run_manual)
     };
     rerun(initial, Duration::ZERO, false);
     {

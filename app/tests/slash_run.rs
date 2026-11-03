@@ -330,3 +330,46 @@ fn cmd_a_key_in_a_block_selects_the_block_then_the_note() {
     let saved = std::fs::read_to_string(&p).unwrap();
     assert!(!saved.contains("第一段") && !saved.contains("```hash"), "{saved}");
 }
+
+#[test]
+fn typing_while_a_request_runs_still_shows_its_result() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let hits = Arc::new(AtomicUsize::new(0));
+    let h = hits.clone();
+    std::thread::spawn(move || {
+        for s in listener.incoming() {
+            let mut s = s.unwrap();
+            let mut buf = [0u8; 2048];
+            let _ = s.read(&mut buf);
+            h.fetch_add(1, Ordering::SeqCst);
+            // Slow: the typing below happens while this request is out.
+            std::thread::sleep(Duration::from_millis(800));
+            let _ = write!(
+                s,
+                "HTTP/1.1 200 OK\r\nContent-Length: 15\r\nConnection: close\r\n\r\n{{\"ok\":\"slowok\"}}"
+            );
+        }
+    });
+    let p = note(
+        "slow.md",
+        &format!(
+            "---\ntoolbook: 1\n---\n```text name=t\nabc\n```\n```http name=r\nGET http://127.0.0.1:{port}/\n```\n```pick input=$r path=body.ok\n```\n"
+        ),
+    );
+    let mut app = start(&p);
+    app.wait_for("text:按 ⌘↵ 运行").unwrap();
+    app.press("text:运行全部").unwrap();
+    app.wait(Duration::from_millis(150)).unwrap();
+    app.press("text:abc").unwrap();
+    app.press_key("end").unwrap();
+    app.press_key("d").unwrap();
+    for _ in 0..40 {
+        if app.screen().texts().iter().any(|t| t.contains("slowok")) {
+            assert_eq!(hits.load(Ordering::SeqCst), 1);
+            return;
+        }
+        app.wait(Duration::from_millis(100)).unwrap();
+    }
+    panic!("the request's result never showed: {:?}", app.screen().texts());
+}

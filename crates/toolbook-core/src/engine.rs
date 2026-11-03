@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::doc::{Block, Document};
@@ -133,6 +134,9 @@ pub struct RunOptions {
     pub library: PathBuf,
     /// Results kept between runs, when the caller keeps them.
     pub memo: Option<Memo>,
+    /// Set by the caller to stop the run before its next block (a newer run
+    /// replaces it).
+    pub cancel: Option<Arc<AtomicBool>>,
 }
 
 impl RunOptions {
@@ -156,6 +160,7 @@ impl RunOptions {
             env,
             library,
             memo: None,
+            cancel: None,
         }
     }
 }
@@ -203,6 +208,9 @@ pub struct BlockResult {
 pub struct RunReport {
     /// The results.
     pub blocks: Vec<BlockResult>,
+    /// Whether the run was stopped ([`RunOptions::cancel`]): `blocks` holds
+    /// only the blocks before that.
+    pub cancelled: bool,
 }
 
 impl RunReport {
@@ -233,7 +241,10 @@ pub fn run(doc: &Document, opts: &RunOptions, base_dir: &Path) -> RunReport {
         memo.begin_run();
     }
     let report = run_with_stack(doc, opts, base_dir, &[]);
-    if let Some(memo) = &opts.memo {
+    // A stopped run used only part of the note: keep what it did not reach.
+    if let Some(memo) = &opts.memo
+        && !report.cancelled
+    {
         memo.end_run();
     }
     report
@@ -276,6 +287,10 @@ pub fn run_with_stack(
     let mut keys: Vec<u64> = Vec::new();
 
     for (index, block) in doc.blocks() {
+        if opts.cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed)) {
+            report.cancelled = true;
+            break;
+        }
         let (status, notes, secrets, key) = run_block(block, opts, base_dir, stack, &defined, &vars, &report, &keys);
         keys.push(key);
         if let Some(name) = &block.info.name

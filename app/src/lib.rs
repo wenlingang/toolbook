@@ -8,6 +8,7 @@ pub mod install;
 pub mod library;
 pub mod markdown_view;
 mod memos;
+mod runner;
 mod secrets;
 pub mod share;
 mod slash;

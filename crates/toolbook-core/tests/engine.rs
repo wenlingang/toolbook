@@ -161,3 +161,21 @@ fn memo_stays_bounded_while_typing() {
     let s = go("```text name=a\n999\n```\n```text name=b input=$a\n```\n", &opts);
     assert_eq!(s[1], BlockStatus::Ok(Value::Text("kept".into())));
 }
+
+#[test]
+fn a_cancelled_run_stops_between_blocks() {
+    use std::sync::Arc;
+    use std::sync::atomic::AtomicBool;
+    use toolbook_core::engine::Memo;
+    let memo = Memo::default();
+    let cancel = Arc::new(AtomicBool::new(true));
+    let opts = RunOptions { memo: Some(memo.clone()), cancel: Some(cancel.clone()), ..RunOptions::default() };
+    let report = run(&note("```text name=a\nx\n```\n```text name=b input=$a\n```\n"), &opts, Path::new("."));
+    assert!(report.cancelled);
+    assert!(report.blocks.is_empty());
+    assert!(memo.is_empty());
+    cancel.store(false, std::sync::atomic::Ordering::SeqCst);
+    let report = run(&note("```text name=a\nx\n```\n"), &opts, Path::new("."));
+    assert!(!report.cancelled);
+    assert_eq!(report.blocks.len(), 1);
+}
