@@ -98,6 +98,23 @@ fn csv_reports_real_lines_and_extra_fields() {
 }
 
 #[test]
+fn to_sql_content_is_a_template_per_row() {
+    let rows = "```json name=rows\n[{\"id\":7,\"name\":\"O'Brien\",\"meta\":{\"vip\":true}},{\"id\":8,\"name\":null,\"meta\":{\"vip\":false}}]\n```\n";
+    let body = format!("{rows}```to-sql input=$rows\nUPDATE users SET name = {{{{ name }}}}, vip = {{{{ meta.vip }}}} WHERE id = {{{{ id }}}}; -- {{{{\"{{{{\"}}}}x}}}}\n```\n");
+    assert_eq!(
+        ok(last(&body)),
+        Value::Text(
+            "UPDATE users SET name = 'O''Brien', vip = TRUE WHERE id = 7; -- {{x}}\nUPDATE users SET name = NULL, vip = FALSE WHERE id = 8; -- {{x}}".into()
+        )
+    );
+    // A name that is not a column says so.
+    let bad = format!("{rows}```to-sql input=$rows\nDELETE FROM t WHERE id = {{{{ uid }}}};\n```\n");
+    assert!(matches!(last(&bad), BlockStatus::Error(m) if m.contains("uid")));
+    // A template without rows to fill asks for them.
+    assert!(matches!(last("```to-sql\nSELECT {{ id }};\n```\n"), BlockStatus::Incomplete(m) if m.contains("input=")));
+}
+
+#[test]
 fn filter_numeric_compare() {
     let body = format!("{SPANS}```pick name=spans input=$t path=spans\n```\n```filter input=$spans where=\"duration > 100\"\n```\n");
     match ok(last(&body)) {

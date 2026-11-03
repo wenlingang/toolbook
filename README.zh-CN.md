@@ -37,7 +37,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | `text` | 纯文本，通常是笔记的输入 |
 | `http` | 发 HTTP 请求（按 ⌘↵ 时才发） |
 | `json` · `pick` · `filter` · `map` | 格式化 JSON、取字段、筛选行、改字段名 |
-| `csv` · `to-json` · `to-sql` | CSV 转表格，表格转 JSON 或 `INSERT` 语句 |
+| `csv` · `to-json` · `to-sql` | CSV 转表格，表格转 JSON、`INSERT`/`UPDATE` 语句，或按行填进自己写的 SQL 模板（`{{ 列名 }}`） |
 | `base64` · `url` · `hash` · `hmac` · `jwt-decode` | 编码、解码、哈希、签名 |
 | `timestamp` · `regex` · `diff` | 跨时区的时间、正则匹配、文本对比 |
 | `js` | 对前面块的结果算一个 JavaScript 表达式 |

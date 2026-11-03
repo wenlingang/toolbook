@@ -4,6 +4,9 @@ use serde_json::Value as Json;
 
 use super::rows::records;
 use super::{Tool, ToolCtx, ToolError};
+use crate::fence::VarRef;
+use crate::path::get_path;
+use crate::template::render_template;
 use crate::value::Value;
 
 pub(super) struct ToSql;
@@ -50,8 +53,37 @@ fn ident(name: &str, dialect: &str) -> String {
     }
 }
 
+/// The content as a SQL template, once per row: `{{ 列 }}` (or `{{ 列.path }}`)
+/// becomes that row's value as a SQL literal.
+fn fill_template(ctx: &ToolCtx, dialect: &str) -> Result<Value, ToolError> {
+    let input = ctx
+        .attrs
+        .get("input")
+        .ok_or_else(|| ToolError::Incomplete("模板要配 input=$表格，按每一行填一次".into()))?;
+    let rows = records(input)?;
+    let mut out = Vec::new();
+    for (i, row) in rows.iter().enumerate() {
+        let lookup = |r: &VarRef| -> Result<Value, String> {
+            let cell = row
+                .get(&r.name)
+                .ok_or_else(|| format!("第 {} 行没有列 {}，现有列：{}", i + 1, r.name, row.keys().cloned().collect::<Vec<_>>().join("、")))?;
+            let v = get_path(&Value::Json(cell.clone()), &r.path)?.to_json();
+            Ok(Value::Text(literal(&v, dialect)))
+        };
+        out.push(render_template(&ctx.content, &lookup).map_err(ToolError::Failed)?);
+    }
+    Ok(Value::Text(out.join("\n")))
+}
+
 impl Tool for ToSql {
     fn run(&self, ctx: &ToolCtx) -> Result<Value, ToolError> {
+        let dialect = ctx.attr_text("dialect").unwrap_or_else(|| "mysql".into());
+        if !matches!(dialect.as_str(), "mysql" | "postgres" | "sqlite") {
+            return Err(ToolError::Failed(format!("dialect 只能是 mysql、postgres、sqlite，收到 {dialect}")));
+        }
+        if !ctx.content.trim().is_empty() {
+            return fill_template(ctx, &dialect);
+        }
         let rows = records(ctx.require_primary()?)?;
         let table = ctx
             .attr_text("table")
@@ -62,10 +94,6 @@ impl Tool for ToSql {
             Some("update") => true,
             Some(m) => return Err(ToolError::Failed(format!("mode 只能是 insert 或 update，收到 {m}"))),
         };
-        let dialect = ctx.attr_text("dialect").unwrap_or_else(|| "mysql".into());
-        if !matches!(dialect.as_str(), "mysql" | "postgres" | "sqlite") {
-            return Err(ToolError::Failed(format!("dialect 只能是 mysql、postgres、sqlite，收到 {dialect}")));
-        }
         let q = |n: &str| ident(n, &dialect);
         let table = q(&table);
         let mut out = Vec::new();

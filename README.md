@@ -37,7 +37,7 @@ Each fenced block names a tool. `name=` gives its result a name, and `input=$hea
 | `text` | Plain text, usually a note's input |
 | `http` | An HTTP request (runs only when you press ⌘↵) |
 | `json` · `pick` · `filter` · `map` | Format JSON, take fields, keep rows, rename fields |
-| `csv` · `to-json` · `to-sql` | CSV to a table, a table to JSON or to `INSERT` statements |
+| `csv` · `to-json` · `to-sql` | CSV to a table, a table to JSON, to `INSERT`/`UPDATE` statements, or to your own SQL filled in per row (`{{ column }}`) |
 | `base64` · `url` · `hash` · `hmac` · `jwt-decode` | Encode, decode, hash, sign |
 | `timestamp` · `regex` · `diff` | Times across time zones, regex matches, text diffs |
 | `js` | A JavaScript expression over earlier results |
