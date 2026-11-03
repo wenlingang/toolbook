@@ -7,7 +7,7 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use serde_json::{Value as Json, json};
-use toolbook_core::engine::{BlockResult, BlockStatus, RunOptions, RunReport};
+use toolbook_core::engine::{BlockResult, BlockStatus, RunOptions};
 use toolbook_core::{NoteSpec, describe_file, run_file};
 
 #[derive(Parser)]
@@ -105,18 +105,6 @@ fn read_value(v: &str) -> Result<String, Usage> {
     }
 }
 
-/// The block that went wrong first, following `Upstream` back.
-fn root_cause(report: &RunReport, mut index: usize) -> (usize, String) {
-    loop {
-        match &report.blocks[index].status {
-            BlockStatus::Upstream { block, .. } => index = *block,
-            BlockStatus::Error(m) | BlockStatus::Incomplete(m) => return (index, m.clone()),
-            BlockStatus::NotRun => return (index, "没有运行".into()),
-            BlockStatus::Ok(_) => return (index, "没有输出".into()),
-        }
-    }
-}
-
 fn block_json(b: &BlockResult) -> Json {
     let mut o = json!({ "index": b.index + 1, "name": b.name, "tool": b.tool });
     let (status, key, val) = match &b.status {
@@ -185,7 +173,7 @@ fn cmd_run(note: &Path, inputs: &[String], output: Option<&str>, as_json: bool) 
         }
         return Ok(ExitCode::SUCCESS);
     }
-    let (i, why) = root_cause(&report, out.index);
+    let (i, why) = report.root_cause(out.index);
     let culprit = &report.blocks[i];
     eprintln!("{}：{why}", label(culprit));
     if as_json {
@@ -262,10 +250,12 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         if e.file_name().to_string_lossy().starts_with('.') {
             continue;
         }
+        // Symlinks are skipped, as in the app's sidebar: a link back up the tree would list notes forever.
+        let Ok(kind) = e.file_type() else { continue };
         let p = e.path();
-        if p.is_dir() {
+        if kind.is_dir() {
             walk(&p, out);
-        } else if p.extension().is_some_and(|x| x == "md") {
+        } else if kind.is_file() && p.extension().is_some_and(|x| x == "md") {
             out.push(p);
         }
     }

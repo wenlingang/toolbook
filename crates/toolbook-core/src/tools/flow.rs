@@ -4,25 +4,13 @@ use std::path::{Path, PathBuf};
 
 use super::{Tool, ToolCtx, ToolError};
 use crate::doc::Document;
-use crate::engine::{BlockStatus, RunReport, run_with_stack};
+use crate::engine::{BlockStatus, run_with_stack};
 use crate::value::Value;
 
 pub(super) struct Flow;
 
 fn file_name(p: &Path) -> String {
     p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
-}
-
-/// The block that went wrong first, following `Upstream` back.
-fn root_cause(report: &RunReport, mut index: usize) -> (usize, String) {
-    loop {
-        match &report.blocks[index].status {
-            BlockStatus::Upstream { block, .. } => index = *block,
-            BlockStatus::Error(m) | BlockStatus::Incomplete(m) => return (index, m.clone()),
-            BlockStatus::NotRun => return (index, "没有运行".into()),
-            BlockStatus::Ok(_) => return (index, "没有输出".into()),
-        }
-    }
 }
 
 impl Tool for Flow {
@@ -90,7 +78,7 @@ impl Tool for Flow {
         match &result.status {
             BlockStatus::Ok(v) => Ok(v.clone()),
             _ => {
-                let (i, why) = root_cause(&report, result.index);
+                let (i, why) = report.root_cause(result.index);
                 Err(ToolError::Failed(format!("子流程 {} 的 [{}] 出错：{why}", file_name(&path), i + 1)))
             }
         }

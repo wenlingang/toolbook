@@ -168,6 +168,18 @@ pub struct RunReport {
 }
 
 impl RunReport {
+    /// The block that went wrong first, following `Upstream` back from block `index`, and why.
+    pub fn root_cause(&self, mut index: usize) -> (usize, String) {
+        loop {
+            match &self.blocks[index].status {
+                BlockStatus::Upstream { block, .. } => index = *block,
+                BlockStatus::Error(m) | BlockStatus::Incomplete(m) => return (index, m.clone()),
+                BlockStatus::NotRun => return (index, "没有运行".into()),
+                BlockStatus::Ok(_) => return (index, "没有输出".into()),
+            }
+        }
+    }
+
     /// The block named `name`, or the last named block.
     pub fn output(&self, name: Option<&str>) -> Option<&BlockResult> {
         match name {

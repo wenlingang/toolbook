@@ -292,3 +292,14 @@ fn closed_stdout_does_not_panic() {
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(!stderr.contains("panicked"), "{stderr}");
 }
+
+#[test]
+fn list_does_not_follow_symlinks() {
+    let home = tmp();
+    std::fs::create_dir_all(home.join("数据转换")).unwrap();
+    std::fs::copy(examples().join("csv-to-sql.md"), home.join("数据转换/csv-to-sql.md")).unwrap();
+    std::os::unix::fs::symlink(&home, home.join("数据转换/loop")).unwrap();
+    let (v, code) = json_out(toolbook(&home).args(["list", "--json"]));
+    assert_eq!(code, 0);
+    assert_eq!(v.as_array().unwrap().len(), 1, "{v}");
+}
