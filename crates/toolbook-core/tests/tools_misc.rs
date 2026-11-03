@@ -162,3 +162,16 @@ fn http_says_how_to_write_a_request_before_it_is_run() {
         other => panic!("{other:?}"),
     }
 }
+
+#[test]
+fn js_errors_say_where_without_engine_stack() {
+    let err = |code: &str| match last(&format!("```js\n{code}\n```\n")) {
+        BlockStatus::Error(m) => m,
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(err("null.x"), "JS 出错：cannot read property 'x' of null（第 1 行第 1 列）");
+    assert_eq!(err("1;\nthrow new Error(\"坏了\")"), "JS 出错：坏了（第 2 行第 11 列）");
+    assert_eq!(err("function f(){ return g() }; f()"), "JS 出错：g is not defined（第 1 行第 22 列）");
+    assert_eq!(err("syntax error here("), "JS 出错：expecting ';'（第 1 行第 8 列）");
+    assert_eq!(err("throw 42"), "JS 出错：42");
+}

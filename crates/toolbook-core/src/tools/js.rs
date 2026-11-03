@@ -1,6 +1,9 @@
 //! `js`: a JavaScript expression over earlier blocks, each as `$name`.
 
+use std::sync::LazyLock;
 use std::time::{Duration, Instant};
+
+use regex::Regex;
 
 use rquickjs::{CatchResultExt, Context, Runtime};
 
@@ -11,6 +14,21 @@ pub(super) struct Js;
 
 const MEMORY: usize = 32 * 1024 * 1024;
 const TIME: Duration = Duration::from_secs(1);
+
+/// "cannot read property 'x' of null（第 1 行第 1 列）": the message and where in the block it
+/// happened, without the engine's stack (`at <eval> (eval_script:1:1)`).
+fn tidy(error: &str) -> String {
+    static WHERE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"eval_script:(\d+):(\d+)").unwrap());
+    let first = error.lines().next().unwrap_or("").trim();
+    let message = match first.split_once(": ") {
+        Some((kind, rest)) if kind.ends_with("Error") && !kind.contains(' ') => rest,
+        _ => first,
+    };
+    match WHERE.captures(error) {
+        Some(c) => format!("{message}（第 {} 行第 {} 列）", &c[1], &c[2]),
+        None => message.to_owned(),
+    }
+}
 
 fn is_ident(s: &str) -> bool {
     let mut chars = s.chars();
@@ -42,8 +60,20 @@ impl Tool for Js {
             let result: rquickjs::Value = js.eval(ctx.content.as_str()).catch(&js).map_err(|e| {
                 if Instant::now() > deadline {
                     ToolError::Failed("JS 执行超过 1 秒，已停止".into())
+                } else if let rquickjs::CaughtError::Value(v) = &e {
+                    // `throw 42`, `throw "坏了"`: a thrown value, not an Error.
+                    let shown = match v.as_string() {
+                        Some(s) => s.to_string().unwrap_or_default(),
+                        None => js
+                            .json_stringify(v.clone())
+                            .ok()
+                            .flatten()
+                            .and_then(|s| s.to_string().ok())
+                            .unwrap_or_else(|| "undefined".into()),
+                    };
+                    ToolError::Failed(format!("JS 出错：{shown}"))
                 } else {
-                    ToolError::Failed(format!("JS 出错：{e}"))
+                    ToolError::Failed(format!("JS 出错：{}", tidy(&e.to_string())))
                 }
             })?;
             if let Some(s) = result.as_string() {
