@@ -18,12 +18,31 @@ use crate::value::Value;
 /// is not computed again, and a block run by hand (`http`) keeps its
 /// result for the automatic runs after it.
 #[derive(Debug, Clone, Default)]
-pub struct Memo(Arc<Mutex<HashMap<u64, (Option<String>, BlockStatus, Vec<String>)>>>);
+pub struct Memo(Arc<Mutex<MemoInner>>);
+
+#[derive(Debug, Default)]
+struct MemoInner {
+    entries: HashMap<u64, MemoEntry>,
+    /// The latest run; entries remember the last run that used them.
+    run: u64,
+}
+
+#[derive(Debug)]
+struct MemoEntry {
+    name: Option<String>,
+    status: BlockStatus,
+    notes: Vec<String>,
+    used: u64,
+}
+
+/// Past this many results, a run keeps only what it used: typing makes a new
+/// result per keystroke, and one can hold megabytes.
+const MEMO_LIMIT: usize = 256;
 
 impl Memo {
     /// How many results it keeps.
     pub fn len(&self) -> usize {
-        self.0.lock().map(|m| m.len()).unwrap_or(0)
+        self.0.lock().map(|m| m.entries.len()).unwrap_or(0)
     }
 
     /// Whether it keeps nothing.
@@ -34,18 +53,37 @@ impl Memo {
     /// Forgets everything.
     pub fn clear(&self) {
         if let Ok(mut m) = self.0.lock() {
-            m.clear();
+            m.entries.clear();
+        }
+    }
+
+    fn begin_run(&self) {
+        if let Ok(mut m) = self.0.lock() {
+            m.run += 1;
+        }
+    }
+
+    fn end_run(&self) {
+        if let Ok(mut m) = self.0.lock()
+            && m.entries.len() > MEMO_LIMIT
+        {
+            let run = m.run;
+            m.entries.retain(|_, e| e.used == run);
         }
     }
 
     fn get(&self, key: u64) -> Option<(BlockStatus, Vec<String>)> {
-        let m = self.0.lock().ok()?;
-        m.get(&key).map(|(_, s, n)| (s.clone(), n.clone()))
+        let mut m = self.0.lock().ok()?;
+        let run = m.run;
+        let e = m.entries.get_mut(&key)?;
+        e.used = run;
+        Some((e.status.clone(), e.notes.clone()))
     }
 
     fn put(&self, key: u64, name: Option<String>, status: BlockStatus, notes: Vec<String>) {
         if let Ok(mut m) = self.0.lock() {
-            m.insert(key, (name, status, notes));
+            let used = m.run;
+            m.entries.insert(key, MemoEntry { name, status, notes, used });
         }
     }
 
@@ -53,9 +91,9 @@ impl Memo {
     #[doc(hidden)]
     pub fn overwrite_all_for_test(&self, name: &str, value: Value) {
         if let Ok(mut m) = self.0.lock() {
-            for (n, s, _) in m.values_mut() {
-                if n.as_deref() == Some(name) {
-                    *s = BlockStatus::Ok(value.clone());
+            for e in m.entries.values_mut() {
+                if e.name.as_deref() == Some(name) {
+                    e.status = BlockStatus::Ok(value.clone());
                 }
             }
         }
@@ -191,7 +229,14 @@ impl RunReport {
 
 /// Runs a note.
 pub fn run(doc: &Document, opts: &RunOptions, base_dir: &Path) -> RunReport {
-    run_with_stack(doc, opts, base_dir, &[])
+    if let Some(memo) = &opts.memo {
+        memo.begin_run();
+    }
+    let report = run_with_stack(doc, opts, base_dir, &[]);
+    if let Some(memo) = &opts.memo {
+        memo.end_run();
+    }
+    report
 }
 
 /// The `$name` identifiers in JS code that name earlier blocks.
@@ -342,7 +387,10 @@ fn run_block_inner(
             );
         }
     }
-    let memoized = opts.memo.as_ref().filter(|_| !NOT_MEMOIZED.contains(&info.tool.as_str()));
+    // js that reads the clock or draws random numbers gives a new result each run.
+    let volatile = NOT_MEMOIZED.contains(&info.tool.as_str())
+        || info.tool == "js" && (content.contains("Date") || content.contains("Math.random"));
+    let memoized = opts.memo.as_ref().filter(|_| !volatile);
     let dep_keys: Vec<u64> = deps.iter().filter_map(|r| defined.get(&r.name).map(|&i| keys[i])).collect();
     let key = block_key(block.info_str(), &content, &dep_keys);
     // A block run by hand runs every time it is asked to (⌘↵ again, a retry).

@@ -125,3 +125,39 @@ fn what_reads_a_request_not_run_yet_waits_for_it() {
     assert_eq!(report.blocks[0].status, BlockStatus::NotRun);
     assert_eq!(report.blocks[1].status, BlockStatus::NotRun);
 }
+
+#[test]
+fn js_reading_the_clock_or_random_is_not_memoized() {
+    use toolbook_core::engine::Memo;
+    let memo = Memo::default();
+    let opts = RunOptions { memo: Some(memo.clone()), ..RunOptions::default() };
+    for code in ["Date.now()", "Math.random()"] {
+        let body = format!("```js name=t\n{code}\n```\n```js name=u\n$t + 1\n```\n");
+        go(&body, &opts);
+        memo.overwrite_all_for_test("t", Value::Text("stale".into()));
+        memo.overwrite_all_for_test("u", Value::Text("stale".into()));
+        let s = go(&body, &opts);
+        assert!(matches!(&s[0], BlockStatus::Ok(Value::Json(_))), "{code}: {:?}", s[0]);
+        assert!(matches!(&s[1], BlockStatus::Ok(Value::Json(_))), "{code}: {:?}", s[1]);
+    }
+    // Other js stays memoized.
+    let body = "```js name=v\n1 + 1\n```\n";
+    go(body, &opts);
+    memo.overwrite_all_for_test("v", Value::Text("kept".into()));
+    assert_eq!(go(body, &opts)[0], BlockStatus::Ok(Value::Text("kept".into())));
+}
+
+#[test]
+fn memo_stays_bounded_while_typing() {
+    use toolbook_core::engine::Memo;
+    let memo = Memo::default();
+    let opts = RunOptions { memo: Some(memo.clone()), ..RunOptions::default() };
+    for i in 0..1000 {
+        go(&format!("```text name=a\n{i}\n```\n```text name=b input=$a\n```\n"), &opts);
+    }
+    assert!(memo.len() <= 300, "{}", memo.len());
+    // What the latest run used is still kept.
+    memo.overwrite_all_for_test("b", Value::Text("kept".into()));
+    let s = go("```text name=a\n999\n```\n```text name=b input=$a\n```\n", &opts);
+    assert_eq!(s[1], BlockStatus::Ok(Value::Text("kept".into())));
+}
