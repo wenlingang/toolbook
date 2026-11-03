@@ -46,12 +46,18 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ## 安装
 
-还没有预先打好的安装包，需要从源码构建。需要 Rust（edition 2024）和 macOS。
+**Mac 应用**
+
+下载 [Toolbook.dmg](https://github.com/wenlingang/toolbook/releases/latest/download/Toolbook.dmg)（Apple 芯片），把 **Toolbook** 拖进「应用程序」。不要直接在 dmg 里运行。
+
+Toolbook 用自己的证书签了名，但没有经过 Apple 公证，所以第一次打开会被 macOS 拦下。两种办法任选：到「系统设置 → 隐私与安全性」里点「仍要打开」；或者在打开 dmg 之前运行 `xattr -d com.apple.quarantine ~/Downloads/Toolbook.dmg`。之后的版本会自动更新：应用每天检查一次，也可以点 **Toolbook › 检查更新…**。
 
 **命令行**
 
+`toolbook` 命令暂时不在 dmg 里，需要用 Rust（edition 2024）编译：
+
 ```sh
-cargo install --path crates/toolbook-cli
+cargo install --git https://github.com/wenlingang/toolbook toolbook-cli --locked
 toolbook list --json
 toolbook describe ~/Toolbook/数据转换/csv-to-sql.md --json
 toolbook run ~/Toolbook/数据转换/csv-to-sql.md --input rows=@data.csv
@@ -61,18 +67,16 @@ toolbook share csv-to-sql.md -o csv-to-sql.html   # 生成分享页
 
 退出码：0 表示成功；1 表示某个块出错，stderr 里写明是第几块、什么原因；2 表示参数或文件有错。`secret` 块从 `TOOLBOOK_SECRET_<NAME>` 读取，`--json` 输出里会打码。
 
-**Mac 应用**
+**从源码构建应用**
 
 应用需要用同一个 commit 编出来的 `nsh` 命令行：
 
 ```sh
 cargo install --git https://github.com/longbridge/nsh --rev 844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0 nsh-cli --locked
-cd app
+git clone https://github.com/wenlingang/toolbook && cd toolbook/app
 nsh run .                       # 开发运行
 nsh package . --target macos    # 生成 .nsh/out/Toolbook.app（未签名）
 ```
-
-应用暂时没有签名。第一次打开时 macOS 会拦下它：到「系统设置 → 隐私与安全性」里点「仍要打开」。
 
 笔记放在 `~/Toolbook/`；设置了 `TOOLBOOK_HOME` 时放在那个目录。第一次启动会放入几篇示例笔记。自定义主题放在 `~/Toolbook/.themes/*.json`（shadcn 的 `cssVars` 格式）。
 

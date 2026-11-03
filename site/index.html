@@ -335,19 +335,16 @@ footer a { color: var(--muted); }
       <div class="install">
         <div>
           <h2>Install</h2>
-          <p class="intro">There are no prebuilt downloads yet: build from source with Rust on macOS. The first launch fills <code>~/Toolbook</code> with thirteen example notes, from Nginx logs to Kubernetes secrets.</p>
+          <p class="intro">Download the app for Apple Silicon Macs. The first launch fills <code>~/Toolbook</code> with thirteen example notes, from Nginx logs to Kubernetes secrets.</p>
         </div>
         <ol>
-          <li>Get the source.
-<pre class="term"><span class="p">$</span> git clone https://github.com/wenlingang/toolbook
-<span class="p">$</span> cd toolbook</pre></li>
-          <li>Install the command line tool.
-<pre class="term"><span class="p">$</span> cargo install --path crates/toolbook-cli</pre></li>
-          <li>Build the app with the matching <span class="inline mono">nsh</span>.
-<pre class="term"><span class="p">$</span> cargo install --git https://github.com/longbridge/nsh \
-    --rev 844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0 nsh-cli --locked
-<span class="p">$</span> cd app && nsh package . --target macos</pre>
-            <p>The app is not signed yet. The first time you open it, go to System Settings → Privacy &amp; Security and click Open Anyway.</p></li>
+          <li>Download <a href="https://github.com/wenlingang/toolbook/releases/latest/download/Toolbook.dmg">Toolbook.dmg</a> and drag Toolbook into Applications.</li>
+          <li>Toolbook is signed but not notarized by Apple, so macOS blocks the first launch. Open System Settings → Privacy &amp; Security and click Open Anyway, or clear the quarantine flag before opening the dmg.
+<pre class="term"><span class="p">$</span> xattr -d com.apple.quarantine ~/Downloads/Toolbook.dmg</pre>
+            <p>Later versions install themselves.</p></li>
+          <li>For the <span class="inline mono">toolbook</span> command line, build it with Rust.
+<pre class="term"><span class="p">$</span> cargo install --git https://github.com/wenlingang/toolbook \
+    toolbook-cli --locked</pre></li>
         </ol>
       </div>
     </section>

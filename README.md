@@ -46,12 +46,18 @@ Each fenced block names a tool. `name=` gives its result a name, and `input=$hea
 
 ## Install
 
-There are no prebuilt releases yet, so build from source. You need Rust (edition 2024) and macOS.
+**Mac app**
+
+Download [Toolbook.dmg](https://github.com/wenlingang/toolbook/releases/latest/download/Toolbook.dmg) (Apple Silicon) and drag **Toolbook** into Applications. Do not run it from inside the dmg.
+
+Toolbook is signed with its own certificate but not notarized by Apple, so macOS blocks the first launch. Either open System Settings → Privacy & Security and click **Open Anyway**, or, before opening the dmg, run `xattr -d com.apple.quarantine ~/Downloads/Toolbook.dmg`. Later versions install themselves: the app checks once a day, or choose **Toolbook › 检查更新…**.
 
 **Command line**
 
+The `toolbook` command is not in the dmg yet; build it with Rust (edition 2024):
+
 ```sh
-cargo install --path crates/toolbook-cli
+cargo install --git https://github.com/wenlingang/toolbook toolbook-cli --locked
 toolbook list --json
 toolbook describe ~/Toolbook/数据转换/csv-to-sql.md --json
 toolbook run ~/Toolbook/数据转换/csv-to-sql.md --input rows=@data.csv
@@ -61,18 +67,16 @@ toolbook share csv-to-sql.md -o csv-to-sql.html   # the page to share
 
 Exit codes: 0 means success. 1 means a block failed, and stderr names the block and the reason. 2 means a bad argument or file. A `secret` block reads `TOOLBOOK_SECRET_<NAME>`, and `--json` output masks it.
 
-**Mac app**
+**Building the app from source**
 
 The app needs the `nsh` command line built from the same commit it depends on:
 
 ```sh
 cargo install --git https://github.com/longbridge/nsh --rev 844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0 nsh-cli --locked
-cd app
+git clone https://github.com/wenlingang/toolbook && cd toolbook/app
 nsh run .                       # run in development
 nsh package . --target macos    # build .nsh/out/Toolbook.app (unsigned)
 ```
-
-The app is not signed yet. The first time you open it, macOS blocks it: go to System Settings → Privacy & Security and click Open Anyway.
 
 Notes live in `~/Toolbook/`, or in `TOOLBOOK_HOME` when that is set. The first launch adds a few example notes. To add your own themes, put them in `~/Toolbook/.themes/*.json` (shadcn `cssVars` format).
 
