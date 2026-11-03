@@ -88,3 +88,31 @@ fn set_block_content_then_reserialize_is_stable() {
 fn description_is_first_paragraph() {
     assert_eq!(Document::parse(SAMPLE).description().as_deref(), Some("说明文字。"));
 }
+
+#[test]
+fn front_matter_marker_tolerates_spacing_quotes_and_comments() {
+    for line in ["toolbook: 1", "toolbook:1", "toolbook:  1  # Toolbook 笔记", "toolbook: true", "toolbook: \"1\"", "  toolbook: 1"] {
+        let doc = Document::parse(&format!("---\ntitle: x\n{line}\n---\n\n正文\n"));
+        assert!(doc.is_toolbook, "{line:?}");
+    }
+    for line in ["toolbook: 0", "toolbook: false", "toolbooks: 1", "# toolbook: 1", "toolbook: 12"] {
+        let doc = Document::parse(&format!("---\n{line}\n---\n\n正文\n"));
+        assert!(!doc.is_toolbook, "{line:?}");
+    }
+}
+
+#[test]
+fn block_in_an_indented_list_item_drops_the_fence_indent() {
+    let src = "---\ntoolbook: 1\n---\n\n1. 第一步\n\n   ```text name=a\n   hello\n     world\n\n   ```\n2. 下一步\n";
+    let mut doc = Document::parse(src);
+    assert_eq!(doc.serialize(), src);
+    let (_, b) = doc.blocks().next().unwrap();
+    assert_eq!(b.content, "hello\n  world\n");
+    doc.set_block_content(0, "x\n\n  y\n```");
+    assert_eq!(
+        doc.serialize(),
+        "---\ntoolbook: 1\n---\n\n1. 第一步\n\n   ````text name=a\n   x\n\n     y\n   ```\n   ````\n2. 下一步\n"
+    );
+    let reparsed = Document::parse(&doc.serialize());
+    assert_eq!(reparsed.blocks().next().unwrap().1.content, "x\n\n  y\n```");
+}

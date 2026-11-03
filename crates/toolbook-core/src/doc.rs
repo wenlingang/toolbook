@@ -68,6 +68,7 @@ impl Block {
 
     fn rebuild(&mut self) {
         let eol = self.line_end().to_owned();
+        let pad = " ".repeat(fence_indent(&self.open_line));
         let ch = self.fence.chars().next().unwrap_or('`');
         // A longer fence when the content holds a line that would close it.
         let longest = self
@@ -79,15 +80,21 @@ impl Block {
         if longest >= self.fence.chars().count() {
             let fence: String = std::iter::repeat_n(ch, longest + 1).collect();
             let info_part = self.open_line.trim_start().trim_start_matches(ch).to_owned();
-            self.open_line = format!("{fence}{info_part}");
+            self.open_line = format!("{pad}{fence}{info_part}");
             let close_eol = if self.close_line.ends_with('\n') { eol.as_str() } else { "" };
-            self.close_line = format!("{fence}{close_eol}");
+            self.close_line = format!("{pad}{fence}{close_eol}");
             self.fence = fence;
         }
         let mut raw = self.open_line.clone();
         if !self.content.is_empty() {
-            raw.push_str(&self.content);
-            raw.push_str(&eol);
+            for line in self.content.split('\n') {
+                let line = line.strip_suffix('\r').unwrap_or(line);
+                if !line.is_empty() {
+                    raw.push_str(&pad);
+                }
+                raw.push_str(line);
+                raw.push_str(&eol);
+            }
         }
         raw.push_str(&self.close_line);
         self.raw = raw;
@@ -143,6 +150,17 @@ fn open_fence(line: &str) -> Option<(char, usize, &str)> {
     Some((ch, n, info))
 }
 
+/// The spaces before a fence (0–3); content lines lose up to that many, as in CommonMark.
+fn fence_indent(line: &str) -> usize {
+    line.len() - line.trim_start_matches(' ').len()
+}
+
+/// `line` without up to `n` leading spaces.
+fn dedent(line: &str, n: usize) -> &str {
+    let spaces = line.len() - line.trim_start_matches(' ').len();
+    &line[spaces.min(n)..]
+}
+
 fn closes(line: &str, ch: char, n: usize) -> bool {
     let body = strip_eol(line);
     let indent = body.len() - body.trim_start_matches(' ').len();
@@ -152,6 +170,26 @@ fn closes(line: &str, ch: char, n: usize) -> bool {
     let body = &body[indent..];
     let m = body.chars().take_while(|c| *c == ch).count();
     m >= n && body[m..].trim().is_empty()
+}
+
+/// Whether a front matter line is `toolbook: 1` (or `true`), allowing what YAML allows around it:
+/// any spacing, quotes, a trailing `# comment`.
+fn marks_toolbook(line: &str) -> bool {
+    let Some((key, value)) = line.split_once(':') else { return false };
+    if key.trim() != "toolbook" {
+        return false;
+    }
+    let value = match value.find(" #") {
+        Some(i) => &value[..i],
+        None => value,
+    };
+    let value = value.trim();
+    let value = value
+        .strip_prefix('"')
+        .and_then(|v| v.strip_suffix('"'))
+        .or_else(|| value.strip_prefix('\'').and_then(|v| v.strip_suffix('\'')))
+        .unwrap_or(value);
+    value == "1" || value == "true"
 }
 
 /// Whether a fence with `info` is a tool block, in a note marked `toolbook: 1` or not (spec §7).
@@ -180,10 +218,7 @@ impl Document {
         {
             let end = end + 1;
             let fm: String = lines[1..end].concat();
-            doc.is_toolbook = fm.lines().any(|l| {
-                let l = l.trim();
-                l == "toolbook: 1" || l == "toolbook: true"
-            });
+            doc.is_toolbook = fm.lines().any(marks_toolbook);
             doc.front_matter = Some(fm);
             for l in &lines[..=end] {
                 raw.push_str(l);
@@ -211,7 +246,8 @@ impl Document {
                 if !raw.is_empty() {
                     doc.segments.push(Segment::Raw(std::mem::take(&mut raw)));
                 }
-                let inner: String = lines[i + 1..close].concat();
+                let indent = fence_indent(line);
+                let inner: String = lines[i + 1..close].iter().map(|l| dedent(l, indent)).collect();
                 let content = inner
                     .strip_suffix('\n')
                     .map(|c| c.strip_suffix('\r').unwrap_or(c))
