@@ -273,3 +273,22 @@ fn export_skill_quotes_input_names_in_its_command() {
     assert!(skill.contains(" --input 'a;touch$(x)=…'"), "{skill}");
     assert!(!skill.contains(" --input a;touch"), "{skill}");
 }
+
+#[test]
+fn closed_stdout_does_not_panic() {
+    // `toolbook run … | head -0`: the reader is gone before toolbook writes.
+    let home = tmp();
+    let mut child = std::process::Command::new(assert_cmd::cargo::cargo_bin("toolbook"))
+        .env("TOOLBOOK_HOME", &home)
+        .arg("run")
+        .arg(examples().join("排查登录-401.md"))
+        .arg("--json")
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    drop(child.stdout.take());
+    let out = child.wait_with_output().unwrap();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!stderr.contains("panicked"), "{stderr}");
+}

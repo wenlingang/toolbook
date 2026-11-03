@@ -384,6 +384,13 @@ fn cmd_export_skill(note: &Path, dir: Option<PathBuf>, name: Option<String>) -> 
 }
 
 fn main() -> ExitCode {
+    // Like other Unix tools, end quietly when the reader goes away (`toolbook run … | head`)
+    // instead of panicking on the failed write; Rust ignores SIGPIPE by default.
+    #[cfg(unix)]
+    // SAFETY: called first thing in main, before any other thread exists.
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
     let cli = Cli::parse();
     let result = match cli.command {
         Command::Run { note, inputs, output, json } => cmd_run(&note, &inputs, output.as_deref(), json),

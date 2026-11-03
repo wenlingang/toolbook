@@ -14,5 +14,8 @@ toolbook-core = { path = "../toolbook-core" }
 clap = { version = "4", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 assert_cmd = "2"

@@ -41,7 +41,7 @@ impl Tool for Timestamp {
             .parse()
             .map_err(|_| ToolError::Failed(format!("不认识的时区 {tz_name}，例如 Asia/Shanghai、UTC")))?;
         let ms: i64 = if let Ok(n) = text.parse::<i64>() {
-            if n.abs() > 1_000_000_000_000 { n } else { n * 1000 }
+            if n.unsigned_abs() > 1_000_000_000_000 { n } else { n * 1000 }
         } else if let Ok(d) = DateTime::parse_from_rfc3339(text) {
             d.timestamp_millis()
         } else if let Ok(naive) = NaiveDateTime::parse_from_str(text, FORMAT) {

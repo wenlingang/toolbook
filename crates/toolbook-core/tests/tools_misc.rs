@@ -40,6 +40,13 @@ fn timestamp_seconds_and_millis() {
 }
 
 #[test]
+fn timestamp_out_of_range_is_an_error_not_a_panic() {
+    for n in [i64::MIN, i64::MAX, -9_223_372_036_854_775] {
+        assert!(matches!(last(&format!("```timestamp\n{n}\n```\n")), BlockStatus::Error(_)), "{n}");
+    }
+}
+
+#[test]
 fn regex_extract_groups_and_replace() {
     assert_eq!(
         ok(last("```regex pattern=\"(\\w+)=(\\d+)\"\na=1 b=2\n```\n")),
