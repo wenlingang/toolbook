@@ -48,6 +48,40 @@ pub fn remember_secret_for_test(path: &Path, name: &str, value: &str) {
     crate::secrets::set(path, name, value);
 }
 
+/// The shared page `html` in `theme`'s colors (the preview in the app):
+/// its CSS variables set again after its own, for the light appearance and
+/// the dark one, as the app picks its colors.
+pub fn with_theme(html: &str, theme: &nsh_base::Theme) -> String {
+    use crate::themes::{SyntaxKind, hex, syntax};
+    let vars = |dark: bool| {
+        let c = |color| hex(color, dark);
+        let k = |kind| hex(syntax(theme, kind), dark);
+        format!(
+            ":root{{--bg:{};--fg:{};--muted:{};--rule:{};--accent:{};--rail:{};--in:{};--panel:{};--panel-fg:{};--k:{};--s:{};--n:{};--l:{};--error:{}}}",
+            c(theme.background),
+            c(theme.foreground),
+            c(theme.muted_foreground),
+            c(theme.border),
+            c(theme.primary),
+            c(theme.ring),
+            c(theme.muted),
+            c(theme.card),
+            c(theme.card_foreground),
+            k(SyntaxKind::Keyword),
+            k(SyntaxKind::String),
+            k(SyntaxKind::Number),
+            k(SyntaxKind::Variable),
+            c(theme.destructive),
+        )
+    };
+    let style = format!(
+        "<style>{}@media (prefers-color-scheme:dark){{{}}}</style></head>",
+        vars(false),
+        vars(true)
+    );
+    html.replacen("</head>", &style, 1)
+}
+
 /// Hides the web view's scroll bars (the exported page keeps them).
 const HIDE_SCROLLBARS: &str = "var s=document.createElement('style');s.textContent='::-webkit-scrollbar{display:none}html{scrollbar-width:none}';document.head.appendChild(s);";
 
@@ -72,8 +106,10 @@ pub fn PreviewView(props: PreviewViewProps) -> impl IntoElement {
                 "<!doctype html><meta charset=utf-8><p style=\"font:15px -apple-system;color:#888;padding:24px\">没有打开的笔记</p>",
             );
         }
+        // Reading the theme here shows the page again when it changes.
+        let theme = nsh_base::theme();
         match note_html(Path::new(&path)) {
-            Ok(h) => h,
+            Ok(h) => with_theme(&h, &theme),
             Err(e) => format!(
                 "<!doctype html><meta charset=utf-8><p style=\"font:15px -apple-system;color:#d92d20;padding:24px\">{e}</p>"
             ),

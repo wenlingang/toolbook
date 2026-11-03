@@ -120,7 +120,11 @@ pub fn with_syntax_colors(mut theme: Theme) -> Theme {
 
 /// [`syntax`] as `#rrggbb`, in the dark or the light appearance.
 pub fn syntax_hex(theme: &Theme, kind: SyntaxKind, dark: bool) -> String {
-    let c = syntax(theme, kind);
+    hex(syntax(theme, kind), dark)
+}
+
+/// `c` as `#rrggbb`, in the dark or the light appearance.
+pub fn hex(c: AdaptiveColor, dark: bool) -> String {
     let rgba = Rgba::from(if dark { c.dark } else { c.light });
     let to = |x: f32| (x.clamp(0.0, 1.0) * 255.0).round() as u8;
     format!("#{:02x}{:02x}{:02x}", to(rgba.r), to(rgba.g), to(rgba.b))
