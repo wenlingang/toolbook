@@ -106,6 +106,18 @@ pub fn syntax(theme: &Theme, kind: SyntaxKind) -> AdaptiveColor {
     })
 }
 
+/// `theme` with every syntax color it lacks filled in from [`syntax`], so the
+/// Markdown view's `text-syntax-*` classes resolve for the user's themes too.
+pub fn with_syntax_colors(mut theme: Theme) -> Theme {
+    for kind in SyntaxKind::ALL {
+        if theme.color(kind.token()).is_none() {
+            let color = syntax(&theme, *kind);
+            theme.set_color(kind.token(), color);
+        }
+    }
+    theme
+}
+
 /// [`syntax`] as `#rrggbb`, in the dark or the light appearance.
 pub fn syntax_hex(theme: &Theme, kind: SyntaxKind, dark: bool) -> String {
     let c = syntax(theme, kind);
@@ -182,7 +194,7 @@ impl Themes {
             }
             None => builtin_theme(&id)?,
         };
-        set_tokens(theme.into_tokens());
+        set_tokens(with_syntax_colors(theme).into_tokens());
         CURRENT.with_borrow_mut(|c| *c = id);
         Ok(())
     }

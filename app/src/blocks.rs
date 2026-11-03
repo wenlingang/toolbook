@@ -165,12 +165,23 @@ impl NodeView for ToolBlock {
                 .into_element();
         }
         if !block_is_tool(&info_str, self.toolbook) {
-            return view()
-                .my(px(4.0))
-                .rounded(px(6.0))
-                .bg(move || theme().muted)
-                .child(slot)
-                .into_element();
+            let plain = view().my(px(4.0)).rounded(px(6.0)).bg(move || theme().muted);
+            // A tool's name in a note not marked as Toolbook's (a `/` insert,
+            // say): plain code, and the reason why.
+            let names_a_tool =
+                toolbook_core::doc::TOOL_NAMES.contains(&parse_info(&info_str).tool.as_str());
+            let plain = if !self.toolbook && names_a_tool {
+                plain.child(
+                    text("这篇笔记的开头没有 toolbook: 1，没写 name= 的块按普通代码处理")
+                        .text_size(px(11.0))
+                        .px(px(10.0))
+                        .pt(px(4.0))
+                        .text_color(move || theme().muted_foreground),
+                )
+            } else {
+                plain
+            };
+            return plain.child(slot).into_element();
         }
 
         let results = self.results;

@@ -22,3 +22,23 @@ fn syntax_colors_follow_theme() {
     assert_eq!(syntax_hex(&deep, SyntaxKind::Variable, true), "#ffb547");
     assert_eq!(syntax_hex(&deep, SyntaxKind::Tool, true), "#0fd3c3");
 }
+
+#[test]
+fn a_custom_theme_without_syntax_colors_gets_them_as_tokens() {
+    use toolbook_app::themes::with_syntax_colors;
+    // A plain shadcn theme: no syntax-* entries.
+    let json = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/themes/dracula.json"))
+        .unwrap()
+        .lines()
+        .filter(|l| !l.contains("syntax-"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let plain = nsh_base::Theme::from_json(&json).unwrap();
+    assert!(plain.color("syntax-variable").is_none());
+    let filled = with_syntax_colors(plain.clone());
+    for kind in SyntaxKind::ALL {
+        let token = format!("syntax-{kind:?}").to_lowercase();
+        assert!(filled.color(&token).is_some(), "{token}");
+        assert_eq!(syntax_hex(&filled, *kind, true), syntax_hex(&plain, *kind, true), "{token}");
+    }
+}

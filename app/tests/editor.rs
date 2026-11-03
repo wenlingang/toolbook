@@ -325,3 +325,14 @@ fn a_note_renamed_while_open_is_not_written_back_to_its_old_path() {
     app.wait(Duration::from_millis(1200)).unwrap();
     assert!(!p.exists(), "no stray file at the old path");
 }
+
+#[test]
+fn a_tool_block_in_a_plain_note_says_why_it_does_not_run() {
+    // No `toolbook: 1`: an unnamed `base64` block is plain code; say so.
+    let p = note("plain.md", "# 普通笔记\n\n```base64\naGVsbG8=\n```\n\n```rust\nfn main() {}\n```\n");
+    let mut app = start(&p);
+    see_part(&mut app, "toolbook: 1");
+    // Code that names no tool gets no such line.
+    let lines = app.screen().texts().iter().filter(|t| t.contains("toolbook: 1")).count();
+    assert_eq!(lines, 1);
+}
