@@ -52,11 +52,19 @@ impl Tool for Csv {
         };
 
         let mut rows = Vec::new();
-        let mut seen: HashMap<String, usize> = HashMap::new();
-        for (i, rec) in reader.records().enumerate() {
-            let line = i + 2;
-            let rec = rec.map_err(|e| ToolError::Failed(format!("CSV 第 {line} 行：{e}")))?;
+        let mut seen: HashMap<String, u64> = HashMap::new();
+        for rec in reader.records() {
+            // Lines as in the text: a quoted field may span several.
+            let rec = rec.map_err(|e| match e.position() {
+                Some(p) => ToolError::Failed(format!("CSV 第 {} 行：{e}", p.line())),
+                None => ToolError::Failed(format!("CSV 读不出来：{e}")),
+            })?;
+            let line = rec.position().map_or(0, |p| p.line());
             let mut row: Vec<String> = rec.iter().map(str::to_owned).collect();
+            if row.len() > columns.len() {
+                let extra = &row[columns.len()..];
+                ctx.note(format!("第 {line} 行：比表头多 {} 个字段（{}），已去掉", extra.len(), extra.join("、")));
+            }
             row.resize(columns.len(), String::new());
             if let Some((_, name, _, pat)) = requires.iter().find(|(c, _, re, _)| !re.is_match(&row[*c])) {
                 ctx.note(format!("第 {line} 行：{name} 不匹配 {pat}，已去掉"));

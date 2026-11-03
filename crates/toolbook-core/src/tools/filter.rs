@@ -40,7 +40,8 @@ fn parse(s: &str) -> Result<Cond, ToolError> {
 }
 
 fn matches(row: &Map<String, Json>, c: &Cond) -> bool {
-    let Some(v) = row.get(&c.field) else { return false };
+    // A row without the field is not equal to anything, and matches nothing else.
+    let Some(v) = row.get(&c.field) else { return c.op == "!=" };
     let s = cell_text(v);
     if c.op == "contains" {
         return s.contains(&c.text);
@@ -55,6 +56,10 @@ fn matches(row: &Map<String, Json>, c: &Cond) -> bool {
             "<=" => x <= n,
             _ => false,
         };
+    }
+    // A number condition does not order text (an empty cell, "-"): comparing it as a string misleads.
+    if c.number.is_some() && !matches!(c.op.as_str(), "==" | "!=") {
+        return false;
     }
     match c.op.as_str() {
         "==" => s == c.text,

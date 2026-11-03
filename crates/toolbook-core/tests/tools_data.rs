@@ -84,6 +84,20 @@ fn to_sql_insert_escapes_quotes() {
 }
 
 #[test]
+fn csv_reports_real_lines_and_extra_fields() {
+    let body = "```csv name=rows dedupe=id\nid,备注\n1,\"第一行\n换行\"\n1,重复\n2,b,多余\n```\n";
+    let doc = Document::parse(body);
+    let report = run(&doc, &RunOptions::default(), Path::new("."));
+    let notes = &report.blocks[0].notes;
+    assert!(notes.iter().any(|n| n.contains("第 4 行") && n.contains("第 2 行")), "{notes:?}");
+    assert!(notes.iter().any(|n| n.contains("第 5 行") && n.contains("多余")), "{notes:?}");
+    match &report.blocks[0].status {
+        BlockStatus::Ok(Value::Table(t)) => assert_eq!(t.rows, [["1", "第一行\n换行"], ["2", "b"]]),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
 fn filter_numeric_compare() {
     let body = format!("{SPANS}```pick name=spans input=$t path=spans\n```\n```filter input=$spans where=\"duration > 100\"\n```\n");
     match ok(last(&body)) {
@@ -94,6 +108,25 @@ fn filter_numeric_compare() {
         other => panic!("{other:?}"),
     }
     assert!(matches!(last("```json name=a\n[]\n```\n```filter input=$a where=\"oops\"\n```\n"), BlockStatus::Error(m) if m.contains("duration > 100")));
+}
+
+#[test]
+fn filter_missing_fields_and_non_numbers() {
+    let ids = |cond: &str| -> Vec<i64> {
+        let body = format!(
+            "```json name=a\n[{{\"id\":1,\"ms\":200}},{{\"id\":2}},{{\"id\":3,\"ms\":\"-\"}},{{\"id\":4,\"ms\":50}}]\n```\n```filter input=$a where=\"{cond}\"\n```\n"
+        );
+        match ok(last(&body)) {
+            Value::Json(j) => j.as_array().unwrap().iter().map(|r| r["id"].as_i64().unwrap()).collect(),
+            other => panic!("{other:?}"),
+        }
+    };
+    // A row without the field is not equal to anything.
+    assert_eq!(ids("ms != 200"), [2, 3, 4]);
+    assert_eq!(ids("ms == 200"), [1]);
+    // A number condition does not order text: "-" is neither above nor below 100.
+    assert_eq!(ids("ms > 100"), [1]);
+    assert_eq!(ids("ms < 100"), [4]);
 }
 
 #[test]
