@@ -249,9 +249,9 @@ fn open(path: PathBuf, run_token: Prop<u32>, select_token: Prop<u32>) -> AnyElem
             .into_iter()
             .zip(list)
             .filter(|((_, _, row), _)| *row > 0.0)
-            .map(|((x, y, row), r)| {
+            .flat_map(|((x, y, row), r)| {
                 let (label, bad) = hint(&r);
-                text_hint(label, bad, x + HINT_GAP, y, row)
+                [status_dot(&r, y, row), text_hint(label, bad, x + HINT_GAP, y, row)]
             })
             .collect::<Vec<_>>()
     };
@@ -334,6 +334,44 @@ fn open(path: PathBuf, run_token: Prop<u32>, select_token: Prop<u32>) -> AnyElem
                         })),
                 ),
         )
+        .into_element()
+}
+
+/// A block's state at a glance, in the gutter beside its closing fence:
+/// the document view's colors (done, broken, waiting).
+fn status_dot(r: &BlockResult, y: f32, row: f32) -> AnyElement {
+    #[derive(Clone, Copy)]
+    enum State {
+        Ok,
+        Error,
+        Waiting,
+    }
+    let state = match &r.status {
+        BlockStatus::Ok(_) => State::Ok,
+        BlockStatus::Error(_) | BlockStatus::Upstream { .. } => State::Error,
+        BlockStatus::Incomplete(_) | BlockStatus::NotRun => State::Waiting,
+    };
+    const SIZE: f32 = 6.0;
+    view()
+        .test_id(match state {
+            State::Ok => "md-status-ok",
+            State::Error => "md-status-error",
+            State::Waiting => "md-status-waiting",
+        })
+        .absolute()
+        .top(px(y + (row - SIZE) / 2.0))
+        .left(px(4.0))
+        .w(px(SIZE))
+        .h(px(SIZE))
+        .rounded(px(SIZE / 2.0))
+        .bg(move || {
+            let t = theme();
+            match state {
+                State::Ok => t.color("ok").unwrap_or(t.primary),
+                State::Error => t.destructive,
+                State::Waiting => t.muted_foreground,
+            }
+        })
         .into_element()
 }
 

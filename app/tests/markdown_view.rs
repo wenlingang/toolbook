@@ -74,6 +74,25 @@ fn broken_block_hint_is_an_error() {
 }
 
 #[test]
+fn status_dots_show_each_blocks_state_in_the_gutter() {
+    let p = note(
+        "---\ntoolbook: 1\n---\n```text name=a\nhi\n```\n```json name=b\n{oops\n```\n```http name=r\nGET http://127.0.0.1:9/\n```\n",
+    );
+    let mut app = start(&p);
+    see_part(&mut app, "→ ✗");
+    let count = |app: &Headless, id: &str| app.screen().count(&format!("id:{id}")).unwrap_or(0);
+    for _ in 0..30 {
+        if count(&app, "md-status-ok") == 1 {
+            break;
+        }
+        app.wait(Duration::from_millis(100)).unwrap();
+    }
+    assert_eq!(count(&app, "md-status-ok"), 1);
+    assert_eq!(count(&app, "md-status-error"), 1);
+    assert_eq!(count(&app, "md-status-waiting"), 1);
+}
+
+#[test]
 fn markdown_view_shows_failed_saves_and_empty_state() {
     let p = note("---\ntoolbook: 1\n---\n```hash name=b\nx\n```\n");
     let mut app = start(&p);
