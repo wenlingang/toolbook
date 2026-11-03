@@ -352,3 +352,19 @@ fn a_block_reading_a_secret_does_not_show_it() {
         "{texts:?}"
     );
 }
+
+#[test]
+fn a_table_result_shows_as_columns() {
+    let p = note(
+        "tbl.md",
+        "---\ntoolbook: 1\n---\n```csv name=rows\n姓名,手机,城市\n张三,13800138000,深圳\n李四,13900139000,广州\n```\n",
+    );
+    let mut app = start(&p);
+    see_part(&mut app, "2 行 × 3 列");
+    let texts = app.screen().texts();
+    // Each cell its own text: a header, and the cells under it.
+    for cell in ["姓名", "手机", "城市", "深圳", "广州", "13800138000"] {
+        assert!(texts.iter().any(|t| *t == cell), "{cell}: {texts:?}");
+    }
+    assert_eq!(app.screen().count("id:result-table").unwrap(), 1);
+}

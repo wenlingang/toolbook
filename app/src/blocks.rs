@@ -7,7 +7,7 @@ use nsh_base::rich_editor::view::{NodeView, NodeViewCx};
 use nsh_base::theme;
 use nsh_core::prelude::*;
 use serde_json::Value as Json;
-use toolbook_core::Value;
+use toolbook_core::{Table, Value};
 use toolbook_core::engine::{BlockResult, BlockStatus};
 use toolbook_core::fence::parse_info;
 
@@ -131,6 +131,102 @@ pub(crate) fn describe(r: &BlockResult) -> (String, Tone) {
     }
 }
 
+/// A table result: its size, then its rows in columns (at most
+/// [`MAX_ROWS`]), scrolling both ways, numbers on the right; then its notes.
+fn table_result(t: &Table, notes: &[String]) -> AnyElement {
+    const CELL_H: f32 = 22.0;
+    let shown = &t.rows[..t.rows.len().min(MAX_ROWS)];
+    // A column as wide as its widest cell (wide characters count twice), within bounds.
+    let units = |s: &str| s.chars().map(|c| if c.is_ascii() { 1.0 } else { 2.0 }).sum::<f32>();
+    let widths: Vec<f32> = (0..t.columns.len())
+        .map(|c| {
+            let widest = std::iter::once(t.columns[c].as_str())
+                .chain(shown.iter().filter_map(|r| r.get(c).map(String::as_str)))
+                .map(units)
+                .fold(0.0, f32::max);
+            (widest * 7.3 + 16.0).clamp(40.0, 260.0)
+        })
+        .collect();
+    let numeric: Vec<bool> = (0..t.columns.len())
+        .map(|c| {
+            let mut cells = shown.iter().filter_map(|r| r.get(c)).filter(|v| !v.is_empty()).peekable();
+            cells.peek().is_some() && cells.all(|v| v.parse::<f64>().is_ok())
+        })
+        .collect();
+    let cell = |s: &str, c: usize, head: bool| {
+        let label = text(s.to_owned())
+            .font_family(MONO)
+            .text_size(px(12.0))
+            .truncate()
+            .text_color(move || if head { theme().muted_foreground } else { theme().foreground });
+        let label = if numeric[c] { label.text_right() } else { label };
+        view()
+            .w(px(widths[c]))
+            .h(px(CELL_H))
+            .flex_shrink_0()
+            .justify_center()
+            .px(px(8.0))
+            .child(label)
+            .into_element()
+    };
+    let header = view()
+        .flex_row()
+        .border_b_1()
+        .border_color(move || theme().border)
+        .children(t.columns.iter().enumerate().map(|(c, name)| cell(name, c, true)).collect::<Vec<_>>());
+    let rows: Vec<AnyElement> = shown
+        .iter()
+        .map(|row| {
+            view()
+                .flex_row()
+                .children(
+                    (0..t.columns.len())
+                        .map(|c| cell(row.get(c).map(String::as_str).unwrap_or(""), c, false))
+                        .collect::<Vec<_>>(),
+                )
+                .into_element()
+        })
+        .collect();
+    let mut caption = format!("{} 行 × {} 列", t.rows.len(), t.columns.len());
+    if t.rows.len() > shown.len() {
+        caption.push_str(&format!("，显示前 {} 行", shown.len()));
+    }
+    let mut footer = String::new();
+    for n in notes {
+        footer.push_str(&format!("· {n}\n"));
+    }
+    view()
+        .gap(px(4.0))
+        .child(
+            text(caption)
+                .font_family(MONO)
+                .text_size(px(12.0))
+                .text_color(move || theme().muted_foreground),
+        )
+        .child(
+            scroll()
+                .test_id("result-table")
+                .horizontal()
+                .scrollbar(false)
+                .child(
+                    scroll()
+                        .scrollbar(false)
+                        .max_h(px(CELL_H * 14.0))
+                        .child(view().child(header).children(rows)),
+                ),
+        )
+        .child(dynamic(move || {
+            (!footer.is_empty()).then(|| {
+                text(footer.trim_end().to_owned())
+                    .font_family(MONO)
+                    .text_size(px(12.0))
+                    .text_color(move || theme().muted_foreground)
+                    .into_element()
+            })
+        }))
+        .into_element()
+}
+
 /// How a result reads.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Tone {
@@ -201,6 +297,7 @@ impl NodeView for ToolBlock {
         };
         let still_tool = move || block_is_tool(&language(&node_sig.get()), toolbook);
         let result_for_dot = result.clone();
+        let result_for_body = result.clone();
         let result_for_color = result.clone();
 
         let info_value = move || language(&node_sig.get());
@@ -369,31 +466,43 @@ impl NodeView for ToolBlock {
                     // Inside the 2pt border of an 8pt box.
                     .rounded_b(px(6.0))
                     .bg(move || theme().muted)
-                    .child(
-                        text(move || match result() {
-                            Some(r) => {
-                                let (mut s, _) = describe(&r);
-                                for n in &r.notes {
-                                    s.push_str(&format!("\n· {n}"));
+                    .child(dynamic(move || {
+                        // A table shows as columns; anything else as text.
+                        if let Some(r) = result_for_body()
+                            && r.tool != "secret"
+                            && let BlockStatus::Ok(Value::Table(t)) = &r.status
+                        {
+                            return Some(table_result(t, &r.notes));
+                        }
+                        let result = result.clone();
+                        let result_for_color = result_for_color.clone();
+                        Some(
+                            text(move || match result() {
+                                Some(r) => {
+                                    let (mut s, _) = describe(&r);
+                                    for n in &r.notes {
+                                        s.push_str(&format!("\n· {n}"));
+                                    }
+                                    s
                                 }
-                                s
-                            }
-                            None if !still_tool() => "不是已知工具，这个块按普通代码处理".into(),
-                            None => "…".into(),
-                        })
-                        .font_family(MONO)
-                        .text_size(px(12.0))
-                        .text_color({
-                            move || {
+                                None if !still_tool() => {
+                                    "不是已知工具，这个块按普通代码处理".into()
+                                }
+                                None => "…".into(),
+                            })
+                            .font_family(MONO)
+                            .text_size(px(12.0))
+                            .text_color(move || {
                                 let t = theme();
                                 match result_for_color().map(|r| describe(&r).1) {
                                     Some(Tone::Error) => t.destructive,
                                     Some(Tone::Muted) | None => t.muted_foreground,
                                     Some(Tone::Ok) => t.foreground,
                                 }
-                            }
-                        }),
-                    ),
+                            })
+                            .into_element(),
+                        )
+                    })),
             )
             .into_element()
     }
