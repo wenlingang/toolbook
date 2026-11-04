@@ -1141,7 +1141,7 @@ dependencies = [
 
 [[package]]
 name = "toolbook-cli"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -1152,7 +1152,7 @@ dependencies = [
 
 [[package]]
 name = "toolbook-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64",
  "chrono",

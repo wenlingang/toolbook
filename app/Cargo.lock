@@ -3206,7 +3206,7 @@ dependencies = [
 
 [[package]]
 name = "toolbook-app"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "nsh-base",
  "nsh-core",
@@ -3223,7 +3223,7 @@ dependencies = [
 
 [[package]]
 name = "toolbook-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64 0.22.1",
  "chrono",
