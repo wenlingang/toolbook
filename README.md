@@ -72,7 +72,7 @@ Exit codes: 0 means success. 1 means a block failed, and stderr names the block 
 The app needs the `nsh` command line built from the same commit it depends on:
 
 ```sh
-cargo install --git https://github.com/longbridge/nsh --rev 844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0 nsh-cli --locked
+cargo install --git https://github.com/longbridge/nsh --rev 1418c564ed67ee96b536507182a82ec5083fec47 nsh-cli --locked
 git clone https://github.com/wenlingang/toolbook && cd toolbook/app
 nsh run .                       # run in development
 nsh package . --target macos    # build .nsh/out/Toolbook.app (unsigned)

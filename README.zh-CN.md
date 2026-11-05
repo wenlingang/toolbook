@@ -72,7 +72,7 @@ toolbook share csv-to-sql.md -o csv-to-sql.html   # 生成分享页
 应用需要用同一个 commit 编出来的 `nsh` 命令行：
 
 ```sh
-cargo install --git https://github.com/longbridge/nsh --rev 844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0 nsh-cli --locked
+cargo install --git https://github.com/longbridge/nsh --rev 1418c564ed67ee96b536507182a82ec5083fec47 nsh-cli --locked
 git clone https://github.com/wenlingang/toolbook && cd toolbook/app
 nsh run .                       # 开发运行
 nsh package . --target macos    # 生成 .nsh/out/Toolbook.app（未签名）

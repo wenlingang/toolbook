@@ -63,6 +63,12 @@ dependencies = [
 
 [[package]]
 name = "alloc-no-stdlib"
+version = "2.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc7bb162ec39d46ab1ca8c77bf72e890535becd1751bb45f64c597edb4c8c6b3"
+
+[[package]]
+name = "alloc-no-stdlib"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2fb6cfd47bf496ff64095c20eaba0c201404ee38714d4142fcfa1dc334fcc7a"
@@ -73,7 +79,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b5c1865780388bfa186411ab5f247819487fc4864c6e9c3106611fa347586e1"
 dependencies = [
- "alloc-no-stdlib",
+ "alloc-no-stdlib 3.0.0",
 ]
 
 [[package]]
@@ -252,9 +258,18 @@ version = "9.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "627b7cfb0578f0eafce087a90fcd40add1231900b69e4d4de2d456260a4f5d81"
 dependencies = [
- "alloc-no-stdlib",
+ "alloc-no-stdlib 3.0.0",
  "alloc-stdlib",
- "brotli-decompressor",
+ "brotli-decompressor 6.2.0",
+]
+
+[[package]]
+name = "brotli-decompressor"
+version = "5.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a32acac15fe1967bc3986b2a6347dffc965602354ea6f450ad07e8bfd253583"
+dependencies = [
+ "alloc-no-stdlib 2.0.4",
 ]
 
 [[package]]
@@ -263,7 +278,7 @@ version = "6.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34c6783f42c21c952ad7112b354f0ba2f10760e9decea5b1b60523d6e270faaf"
 dependencies = [
- "alloc-no-stdlib",
+ "alloc-no-stdlib 3.0.0",
  "alloc-stdlib",
 ]
 
@@ -1689,8 +1704,8 @@ dependencies = [
 
 [[package]]
 name = "nsh-base"
-version = "0.3.0"
-source = "git+https://github.com/longbridge/nsh?rev=844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0#844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0"
+version = "0.4.0"
+source = "git+https://github.com/longbridge/nsh?rev=1418c564ed67ee96b536507182a82ec5083fec47#1418c564ed67ee96b536507182a82ec5083fec47"
 dependencies = [
  "chrono",
  "html5ever",
@@ -1707,12 +1722,13 @@ dependencies = [
  "syntect",
  "two-face",
  "unicode-segmentation",
+ "unicode-width",
 ]
 
 [[package]]
 name = "nsh-core"
-version = "0.3.0"
-source = "git+https://github.com/longbridge/nsh?rev=844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0#844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0"
+version = "0.4.0"
+source = "git+https://github.com/longbridge/nsh?rev=1418c564ed67ee96b536507182a82ec5083fec47#1418c564ed67ee96b536507182a82ec5083fec47"
 dependencies = [
  "cap-std",
  "crc32fast",
@@ -1734,15 +1750,17 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "unicode-linebreak",
+ "unicode-properties",
  "url",
  "webpki-roots 1.0.11",
  "windows-sys 0.61.2",
+ "wuff",
 ]
 
 [[package]]
 name = "nsh-engine"
-version = "0.3.0"
-source = "git+https://github.com/longbridge/nsh?rev=844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0#844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0"
+version = "0.4.0"
+source = "git+https://github.com/longbridge/nsh?rev=1418c564ed67ee96b536507182a82ec5083fec47#1418c564ed67ee96b536507182a82ec5083fec47"
 dependencies = [
  "crossbeam-channel",
  "libc",
@@ -1759,8 +1777,8 @@ dependencies = [
 
 [[package]]
 name = "nsh-js"
-version = "0.3.0"
-source = "git+https://github.com/longbridge/nsh?rev=844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0#844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0"
+version = "0.4.0"
+source = "git+https://github.com/longbridge/nsh?rev=1418c564ed67ee96b536507182a82ec5083fec47#1418c564ed67ee96b536507182a82ec5083fec47"
 dependencies = [
  "futures-util",
  "getrandom 0.4.3",
@@ -1780,20 +1798,21 @@ dependencies = [
 
 [[package]]
 name = "nsh-macros"
-version = "0.3.0"
-source = "git+https://github.com/longbridge/nsh?rev=844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0#844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0"
+version = "0.4.0"
+source = "git+https://github.com/longbridge/nsh?rev=1418c564ed67ee96b536507182a82ec5083fec47#1418c564ed67ee96b536507182a82ec5083fec47"
 dependencies = [
  "imagesize",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
  "ttf-parser",
+ "wuff",
 ]
 
 [[package]]
 name = "nsh-package"
-version = "0.3.0"
-source = "git+https://github.com/longbridge/nsh?rev=844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0#844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0"
+version = "0.4.0"
+source = "git+https://github.com/longbridge/nsh?rev=1418c564ed67ee96b536507182a82ec5083fec47#1418c564ed67ee96b536507182a82ec5083fec47"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek 2.2.0",
@@ -1807,8 +1826,8 @@ dependencies = [
 
 [[package]]
 name = "nsh-testing"
-version = "0.3.0"
-source = "git+https://github.com/longbridge/nsh?rev=844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0#844bf1ea368a50a32e25bd8ebbcb7ee413f0f0d0"
+version = "0.4.0"
+source = "git+https://github.com/longbridge/nsh?rev=1418c564ed67ee96b536507182a82ec5083fec47#1418c564ed67ee96b536507182a82ec5083fec47"
 dependencies = [
  "crossbeam-channel",
  "log",
@@ -3326,6 +3345,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b09c83c3c29d37506a3e260c08c03743a6bb66a9cd432c6934ab501a190571f"
 
 [[package]]
+name = "unicode-properties"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "993ad287eb20e8ba755312801cfe1413e0f25d604075863acaddca10b04c1833"
+
+[[package]]
 name = "unicode-segmentation"
 version = "1.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3815,6 +3840,17 @@ name = "writeable"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
+
+[[package]]
+name = "wuff"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "200a7b806377b65f1ff9a985874332f15357c87e5dd7855f35f06dade95b8b3d"
+dependencies = [
+ "brotli-decompressor 5.0.3",
+ "bytes",
+ "flate2",
+]
 
 [[package]]
 name = "x25519-dalek"
