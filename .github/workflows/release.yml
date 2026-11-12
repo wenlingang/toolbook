@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  NSH_REV: 1418c564ed67ee96b536507182a82ec5083fec47
+  NSH_REV: f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1
 
 # Two jobs: `build` tests and compiles with caches and third-party actions but never sees the
 # signing certificate; `release` signs and publishes with only GitHub's own actions, pinned, and no
